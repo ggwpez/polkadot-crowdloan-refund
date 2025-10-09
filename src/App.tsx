@@ -16,7 +16,7 @@ function Navigation() {
     { to: "/dashboard", label: "Dashboard", icon: Sparkles },
     { to: "/wallet", label: "Wallet", icon: Wallet },
     { to: "/components", label: "Components", icon: Package },
-    { to: "/examples", label: "Examples", icon: Sparkles },
+    { to: "/examples", label: "API Examples", icon: Sparkles },
   ];
 
   return (
