@@ -181,8 +181,8 @@ export default function CrowdloanContributions() {
 
   // Handle unlocking a crowdloan contribution
   const handleUnlock = async (contribution: ContributionEntry) => {
-    if (!relayChainApi || !connectedAccount) {
-      alert("Please connect your wallet and ensure relay chain API is connected");
+    if (!api || !connectedAccount) {
+      alert("Please connect your wallet and ensure Asset Hub API is connected");
       return;
     }
 
@@ -196,18 +196,28 @@ export default function CrowdloanContributions() {
     try {
       setUnlockingRows((prev) => new Set(prev).add(rowKey));
 
-      // Create the withdraw extrinsic
-      const tx = relayChainApi.tx.crowdloan.withdraw(
+      // Get the signer from the wallet
+      const { web3Enable, web3FromAddress } = await import('@polkadot/extension-dapp');
+
+      // Enable web3 extensions
+      await web3Enable('AssetHub AhOps');
+
+      // Get the injector for the connected account
+      const injector = await web3FromAddress(connectedAccount.address);
+
+      // Create the withdraw extrinsic using AhOps pallet on Asset Hub
+      const tx = api.tx.ahOps.withdrawCrowdloanContribution(
+        contribution.unlockBlockNumber,
         contribution.account,
         contribution.paraId
       );
 
-      console.log(`[Unlock] Submitting withdraw for paraId ${contribution.paraId}, account ${contribution.account}`);
+      console.log(`[Unlock] Submitting withdrawCrowdloanContribution for paraId ${contribution.paraId}, account ${contribution.account}, block ${contribution.unlockBlockNumber}`);
 
       // Sign and send the transaction
       await tx.signAndSend(
         connectedAccount.address,
-        { signer: connectedAccount.signer },
+        { signer: injector.signer },
         ({ status, events, dispatchError }) => {
           if (status.isInBlock) {
             console.log(`[Unlock] Transaction included in block hash: ${status.asInBlock.toHex()}`);
@@ -218,15 +228,15 @@ export default function CrowdloanContributions() {
 
             if (dispatchError) {
               if (dispatchError.isModule) {
-                const decoded = relayChainApi.registry.findMetaError(dispatchError.asModule);
+                const decoded = api.registry.findMetaError(dispatchError.asModule);
                 console.error(`[Unlock] Error: ${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`);
-                alert(`Transaction failed: ${decoded.section}.${decoded.name}`);
+                alert(`Transaction failed: ${decoded.section}.${decoded.name}\n${decoded.docs.join(' ')}`);
               } else {
                 console.error(`[Unlock] Error: ${dispatchError.toString()}`);
                 alert(`Transaction failed: ${dispatchError.toString()}`);
               }
             } else {
-              alert("Unlock transaction successful! The funds should be available in your account.");
+              alert("Unlock transaction successful! The funds have been withdrawn to your account.");
               // Refresh the contributions list after a short delay
               setTimeout(() => {
                 window.location.reload();
