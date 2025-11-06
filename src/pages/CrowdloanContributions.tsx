@@ -10,8 +10,9 @@ import { usePolkadot } from "@/providers/PolkadotProvider";
 import { useEffect, useState } from "react";
 
 interface ContributionEntry {
-  account: string;
+  unlockBlockNumber: string;
   paraId: string;
+  account: string;
   amount: string;
 }
 
@@ -20,6 +21,8 @@ export default function CrowdloanContributions() {
   const [contributions, setContributions] = useState<ContributionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tokenDecimals, setTokenDecimals] = useState<number>(10);
+  const [tokenSymbol, setTokenSymbol] = useState<string>("DOT");
 
   useEffect(() => {
     async function fetchContributions() {
@@ -32,19 +35,30 @@ export default function CrowdloanContributions() {
         setLoading(true);
         setError(null);
 
+        // Get token decimals and symbol from chain properties
+        const properties = await api.rpc.system.properties();
+        const decimals = Number(properties.tokenDecimals.unwrapOr([10])[0]);
+        const symbol = properties.tokenSymbol.unwrapOr(["DOT"])[0].toString();
+        setTokenDecimals(decimals);
+        setTokenSymbol(symbol);
+
         // Query all entries from the RcCrowdloanContributions storage map
-        console.log("null?", api.query.ahOps);
         const entries = await api.query.ahOps.rcCrowdloanContribution.entries();
 
         const formattedEntries: ContributionEntry[] = entries.map(
           ([key, value]) => {
-            // Decode the storage key to get the account and paraId
-            const [account, paraId] = key.args;
+            // Decode the storage key to get unlockBlockNumber and paraId
+            const [unlockBlockNumber, paraId] = key.args;
+            // Decode the value array to get [account, amount]
+            const valueArray = value.toJSON() as any[];
+            const account = valueArray[0];
+            const amount = valueArray[1];
 
             return {
-              account: account.toString(),
+              unlockBlockNumber: unlockBlockNumber.toString(),
               paraId: paraId.toString(),
-              amount: value.toString(),
+              account: account.toString(),
+              amount: amount.toString(),
             };
           }
         );
@@ -125,10 +139,13 @@ export default function CrowdloanContributions() {
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="text-left py-3 px-4 text-white/80 font-semibold">
-                      Account
+                      Unlock Block
                     </th>
                     <th className="text-left py-3 px-4 text-white/80 font-semibold">
                       Para ID
+                    </th>
+                    <th className="text-left py-3 px-4 text-white/80 font-semibold">
+                      Account
                     </th>
                     <th className="text-right py-3 px-4 text-white/80 font-semibold">
                       Amount
@@ -138,18 +155,24 @@ export default function CrowdloanContributions() {
                 <tbody>
                   {contributions.map((contribution, idx) => (
                     <tr
-                      key={`${contribution.account}-${contribution.paraId}`}
+                      key={`${contribution.unlockBlockNumber}-${contribution.paraId}-${contribution.account}`}
                       className="border-b border-white/5 hover:bg-white/5 transition-colors"
                     >
-                      <td className="py-3 px-4 font-mono text-sm text-white/90">
-                        {contribution.account.slice(0, 8)}...
-                        {contribution.account.slice(-8)}
+                      <td className="py-3 px-4 text-white/90">
+                        {contribution.unlockBlockNumber}
                       </td>
                       <td className="py-3 px-4 text-white/90">
                         {contribution.paraId}
                       </td>
+                      <td className="py-3 px-4 font-mono text-sm text-white/90">
+                        {contribution.account.slice(0, 8)}...
+                        {contribution.account.slice(-8)}
+                      </td>
                       <td className="py-3 px-4 text-right text-white/90">
-                        {contribution.amount}
+                        {(Number(contribution.amount) / Math.pow(10, tokenDecimals)).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 4
+                        })} {tokenSymbol}
                       </td>
                     </tr>
                   ))}
