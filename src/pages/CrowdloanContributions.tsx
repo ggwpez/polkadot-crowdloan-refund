@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { usePolkadot } from "@/providers/PolkadotProvider";
 import { useRPCSettings } from "@/providers/RPCSettingsProvider";
 import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTypink } from "typink";
@@ -23,6 +23,11 @@ interface ContributionEntry {
   fundPot: string;
   balance: string;
 }
+
+type FetchState =
+  | { status: "idle" }
+  | { status: "fetching"; currentCount: number }
+  | { status: "complete"; totalCount: number };
 
 export default function CrowdloanContributions() {
   const { api, status, relayChainApi, relayChainStatus } = usePolkadot();
@@ -41,6 +46,7 @@ export default function CrowdloanContributions() {
   const [lastQueryTime, setLastQueryTime] = useState<number>(0);
   const [cachedEntries, setCachedEntries] = useState<ContributionEntry[]>([]);
   const [unlockingRows, setUnlockingRows] = useState<Set<string>>(new Set());
+  const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
 
   // Convert connected account address to Polkadot SS58 format (prefix 0)
   const connectedAccountPolkadot = useMemo(() => {
@@ -152,7 +158,7 @@ export default function CrowdloanContributions() {
       return;
     }
 
-    const newList = [...searchAccountsList, trimmed];
+    const newList = [trimmed, ...searchAccountsList];
     setSearchAccountsList(newList);
     setSearchParams({ accounts: newList.join(",") });
     setNewAccountInput("");
@@ -299,6 +305,7 @@ export default function CrowdloanContributions() {
 
       try {
         setLoading(true);
+        setFetchState({ status: "fetching", currentCount: 0 });
         setError(null);
         setContributions([]); // Clear previous contributions
 
@@ -311,18 +318,26 @@ export default function CrowdloanContributions() {
         setTokenDecimals(decimals);
         setTokenSymbol(symbol);
 
-        // Query all entries from the RcCrowdloanContributions storage map
-        const entries = await api.query.ahOps.rcCrowdloanContribution.entries();
-
-        // Process entries in batches
-        const BATCH_SIZE = 100;
+        // Fetch entries using pagination to stream results
+        const PAGE_SIZE = 500;
         const allFormattedEntries: ContributionEntry[] = [];
         let itemsSinceLastUpdate = 0;
+        let lastKey: string | undefined = undefined;
+        let pageCount = 0;
 
-        for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-          const batch = entries.slice(i, i + BATCH_SIZE);
+        while (true) {
+          const entries: any = await api.query.ahOps.rcCrowdloanContribution.entriesPaged({
+            args: [],
+            pageSize: PAGE_SIZE,
+            startKey: lastKey,
+          });
 
-          const formattedBatch: ContributionEntry[] = batch.map(
+          if (entries.length === 0) break;
+
+          pageCount++;
+
+          // Process the page
+          const formattedBatch: ContributionEntry[] = entries.map(
             ([key, value]) => {
               // Decode the storage key to get unlockBlockNumber, paraId, and account
               const [unlockBlockNumber, paraId, account] = key.args;
@@ -347,27 +362,36 @@ export default function CrowdloanContributions() {
           // Update contributions every 10 items
           if (itemsSinceLastUpdate >= 10) {
             setCachedEntries([...allFormattedEntries]);
+            setFetchState({ status: "fetching", currentCount: allFormattedEntries.length });
             itemsSinceLastUpdate = 0;
           }
 
-          // Hide loading spinner after first batch
-          if (i === 0) {
+          // Hide loading spinner after first page
+          if (pageCount === 1) {
             setLoading(false);
           }
 
-          // Allow UI to update between batches
+          // Check if this was the last page
+          if (entries.length < PAGE_SIZE) break;
+
+          // Get the last key for the next page
+          lastKey = entries[entries.length - 1][0].toHex();
+
+          // Allow UI to update between pages
           await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         // Final update with all entries
         setCachedEntries(allFormattedEntries);
         setLastQueryTime(now);
+        setFetchState({ status: "complete", totalCount: allFormattedEntries.length });
       } catch (err) {
         console.error("Error fetching contributions:", err);
         setError(
           err instanceof Error ? err.message : "Failed to fetch contributions"
         );
         setLoading(false);
+        setFetchState({ status: "idle" });
       }
     }
 
@@ -496,13 +520,21 @@ export default function CrowdloanContributions() {
                     </tr>
                   </thead>
                   <tbody>
-                    {searchAccountsList.map((account, idx) => (
+                    {searchAccountsList.map((account, idx) => {
+                      const normalized = normalizeAddress(account);
+                      const isConnectedAccount = normalized && connectedAccountPolkadot &&
+                        normalized.toLowerCase() === connectedAccountPolkadot.toLowerCase();
+
+                      return (
                       <tr
                         key={idx}
                         className="border-b border-white/5 hover:bg-white/5 transition-colors"
                       >
                         <td className="py-3 px-3 font-mono text-sm text-white/90">
                           {account}
+                          {isConnectedAccount && (
+                            <span className="ml-2 text-xs text-pink-400">(you)</span>
+                          )}
                         </td>
                         <td className="py-3 px-3 text-center text-white/90">
                           <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-pink-500/20 text-pink-300 text-xs font-semibold">
@@ -521,7 +553,8 @@ export default function CrowdloanContributions() {
                           </Button>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -532,12 +565,20 @@ export default function CrowdloanContributions() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Contributions</CardTitle>
           <CardDescription>
-            Total entries: {contributions.length}
+            {(() => {
+              switch (fetchState.status) {
+                case "fetching":
+                  return `Entries: ${fetchState.currentCount} (loading...)`;
+                case "complete":
+                  return `Entries: ${fetchState.totalCount}`;
+                case "idle":
+                  return `Entries: 0`;
+              }
+            })()}
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-6">
+        <CardContent className="pt-2">
           {loading ? (
             <div className="space-y-3">
               <LoadingSkeleton />
