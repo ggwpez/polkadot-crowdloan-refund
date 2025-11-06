@@ -1,22 +1,13 @@
-import { Home, Package, Sparkles, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import ConnectWallet from "./components/ConnectWallet";
 import { NetworkSwitcher } from "./components/NetworkSwitcher";
-import Accounts from "./pages/Accounts";
-import ComponentsShowcase from "./pages/ComponentsShowcase";
-import Dashboard from "./pages/Dashboard";
-import Examples from "./pages/Examples";
-import Homepage from "./pages/Homepage";
-import WalletPage from "./pages/WalletPage";
+import CrowdloanContributions from "./pages/CrowdloanContributions";
 import { PolkadotProvider } from "./providers/PolkadotProvider";
 
 function Navigation() {
   const links = [
-    { to: "/", label: "Home", icon: Home },
-    { to: "/dashboard", label: "Dashboard", icon: Sparkles },
-    { to: "/wallet", label: "Wallet", icon: Wallet },
-    { to: "/components", label: "Components", icon: Package },
-    { to: "/examples", label: "API Examples", icon: Sparkles },
+    { to: "/", label: "Crowdloan Contributions", icon: Wallet },
   ];
 
   return (
@@ -28,7 +19,7 @@ function Navigation() {
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <div className="w-8 h-8 rounded-lg bg-gradient-polkadot"></div>
-            <span className="text-xl font-bold text-white">Polkadot UI</span>
+            <span className="text-xl font-bold text-white">AssetHub AhOps</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-6">
@@ -62,22 +53,10 @@ function Footer() {
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-gradient-polkadot"></div>
             <span className="text-white/70 text-sm">
-              Built with Polkadot UI
+              AssetHub AhOps Interface
             </span>
           </div>
           <div className="flex items-center gap-6">
-            <a
-              href="https://polkadot-ui.com"
-              className="text-white/60 hover:text-white transition-colors text-sm"
-            >
-              Documentation
-            </a>
-            <a
-              href="https://github.com/Polkadot-UI-Initiative"
-              className="text-white/60 hover:text-white transition-colors text-sm"
-            >
-              GitHub
-            </a>
             <a
               href="https://polkadot.network"
               className="text-white/60 hover:text-white transition-colors text-sm"
@@ -99,12 +78,7 @@ export default function App() {
           <Navigation />
           <main className="pt-16">
             <Routes>
-              <Route path="/" element={<Homepage />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/accounts" element={<Accounts />} />
-              <Route path="/wallet" element={<WalletPage />} />
-              <Route path="/components" element={<ComponentsShowcase />} />
-              <Route path="/examples" element={<Examples />} />
+              <Route path="/" element={<CrowdloanContributions />} />
             </Routes>
           </main>
           <Footer />
