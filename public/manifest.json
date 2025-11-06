@@ -1,7 +1,7 @@
 {
-  "name": "Polkadot UI Template",
-  "short_name": "Polkadot UI",
-  "description": "A modern React template for building Polkadot applications",
+  "name": "Polkadot Crowdloan Unlocker",
+  "short_name": "Crowdloan Unlocker",
+  "description": "Unlock your Polkadot crowdloan contributions and manage your assets",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0b1e",

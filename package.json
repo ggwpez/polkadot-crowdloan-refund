@@ -1,23 +1,23 @@
 {
-  "name": "polkadot-ui-template",
+  "name": "polkadot-crowdloan-refund",
   "version": "0.1.0",
   "private": false,
   "type": "module",
-  "description": "A beautiful, production-ready React template for building Polkadot applications",
+  "description": "Unlock your Polkadot crowdloan contributions and manage your assets",
   "repository": {
     "type": "git",
-    "url": "https://github.com/paritytech/polkadot-ui-template.git"
+    "url": "https://github.com/ggwpez/polkadot-crowdloan-refund.git"
   },
   "keywords": [
     "polkadot",
-    "react",
-    "typescript",
+    "crowdloan",
+    "unlock",
+    "contributions",
     "web3",
     "blockchain",
-    "template",
-    "ui"
+    "parachain"
   ],
-  "author": "Parity Technologies",
+  "author": "Oliver Tale-Yazdi, Parity Technologies",
   "license": "MIT",
   "scripts": {
     "dev": "vite",

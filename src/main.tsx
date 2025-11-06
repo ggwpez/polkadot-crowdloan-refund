@@ -10,7 +10,7 @@ const queryClient = new QueryClient()
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <TypinkProvider appName="Polkadot UI Template">
+      <TypinkProvider appName="Polkadot Crowdloan Unlocker">
         <App />
       </TypinkProvider>
     </QueryClientProvider>
