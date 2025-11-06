@@ -590,6 +590,7 @@ export default function LeaseReserve() {
                           title="Click to copy address"
                         >
                           {truncateAddress(entry.account)}
+                          <span className="sr-only">{entry.account}</span>
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right text-white/90">

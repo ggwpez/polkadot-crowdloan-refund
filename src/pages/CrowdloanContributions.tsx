@@ -595,6 +595,7 @@ export default function CrowdloanContributions() {
                           title="Click to copy address"
                         >
                           {truncateAddress(contribution.account)}
+                          <span className="sr-only">{contribution.account}</span>
                         </button>
                       </td>
                       <td className="py-3 px-4 text-white/90 font-mono text-sm">
@@ -606,6 +607,7 @@ export default function CrowdloanContributions() {
                           title="Click to copy fund pot address"
                         >
                           {truncateAddress(contribution.fundPot)}
+                          <span className="sr-only">{contribution.fundPot}</span>
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right text-white/90">
