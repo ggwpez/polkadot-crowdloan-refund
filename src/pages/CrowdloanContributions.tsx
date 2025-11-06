@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { usePolkadot } from "@/providers/PolkadotProvider";
+import { useRPCSettings } from "@/providers/RPCSettingsProvider";
 import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
 import { Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -26,6 +27,7 @@ interface ContributionEntry {
 export default function CrowdloanContributions() {
   const { api, status, relayChainApi, relayChainStatus } = usePolkadot();
   const { connectedAccount } = useTypink();
+  const { settings } = useRPCSettings();
   const [searchParams, setSearchParams] = useSearchParams();
   const [contributions, setContributions] = useState<ContributionEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,13 @@ export default function CrowdloanContributions() {
 
   // Fetch current relay chain block number
   useEffect(() => {
+    // If there's a block override, use it instead of fetching from chain
+    if (settings.relayBlockOverride !== null) {
+      setCurrentRelayBlock(settings.relayBlockOverride);
+      console.log(`[Relay Chain] Using override block: ${settings.relayBlockOverride}`);
+      return;
+    }
+
     async function fetchCurrentBlock() {
       if (!relayChainApi || relayChainStatus !== "connected") {
         return;
@@ -92,7 +101,7 @@ export default function CrowdloanContributions() {
     const interval = setInterval(fetchCurrentBlock, 12000);
 
     return () => clearInterval(interval);
-  }, [relayChainApi, relayChainStatus]);
+  }, [relayChainApi, relayChainStatus, settings.relayBlockOverride]);
 
   // Convert addresses to Polkadot SS58 format
   const normalizeAddress = (address: string): string | null => {

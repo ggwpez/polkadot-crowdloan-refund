@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import ConnectWallet from "./components/ConnectWallet";
 import CrowdloanContributions from "./pages/CrowdloanContributions";
 import { PolkadotProvider } from "./providers/PolkadotProvider";
+import { RPCSettingsProvider } from "./providers/RPCSettingsProvider";
 
 function Navigation() {
   const links = [
@@ -70,18 +71,20 @@ function Footer() {
 
 export default function App() {
   return (
-    <PolkadotProvider>
-      <BrowserRouter>
-        <div className="min-h-screen bg-gradient-to-br from-[#0b0b1e] via-[#1a0b2e] to-[#0b0b1e]">
-          <Navigation />
-          <main className="pt-16">
-            <Routes>
-              <Route path="/" element={<CrowdloanContributions />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </BrowserRouter>
-    </PolkadotProvider>
+    <RPCSettingsProvider>
+      <PolkadotProvider>
+        <BrowserRouter>
+          <div className="min-h-screen bg-gradient-to-br from-[#0b0b1e] via-[#1a0b2e] to-[#0b0b1e]">
+            <Navigation />
+            <main className="pt-16">
+              <Routes>
+                <Route path="/" element={<CrowdloanContributions />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </BrowserRouter>
+      </PolkadotProvider>
+    </RPCSettingsProvider>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useTypink } from 'typink'
-import { Wallet, ChevronRight, Check, Download, User } from 'lucide-react'
+import { Wallet, ChevronRight, Check, Download, User, Settings } from 'lucide-react'
 import { Button } from './ui/Button'
 import {
   Dialog,
@@ -10,12 +10,14 @@ import {
   DialogDescription,
 } from './ui/Dialog'
 import Identicon from '@polkadot/react-identicon'
+import RPCSettings from './RPCSettings'
 
 type View = 'wallets' | 'accounts'
 
 export default function ConnectWallet() {
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<View>('wallets')
+  const [settingsOpen, setSettingsOpen] = useState(false)
   
   const {
     wallets,
@@ -61,31 +63,45 @@ export default function ConnectWallet() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <Button
-        variant={connectedAccount ? 'gradient' : 'default'}
-        size="lg"
-        onClick={() => setOpen(true)}
-        className="gap-2"
-      >
-        {connectedAccount ? (
-          <>
-            <div className="flex items-center gap-2">
-              <Identicon
-                value={connectedAccount.address}
-                size={24}
-                theme="polkadot"
-              />
-              <span>{connectedAccount.name || truncateAddress(connectedAccount.address)}</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <Wallet className="w-5 h-5" />
-            Connect Wallet
-          </>
-        )}
-      </Button>
+    <>
+      <div className="flex items-center gap-2">
+        <Button
+          variant={connectedAccount ? 'gradient' : 'default'}
+          size="lg"
+          onClick={() => setOpen(true)}
+          className="gap-2"
+        >
+          {connectedAccount ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Identicon
+                  value={connectedAccount.address}
+                  size={24}
+                  theme="polkadot"
+                />
+                <span>{connectedAccount.name || truncateAddress(connectedAccount.address)}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <Wallet className="w-5 h-5" />
+              Connect Wallet
+            </>
+          )}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={() => setSettingsOpen(true)}
+          className="gap-2"
+          title="RPC Settings"
+        >
+          <Settings className="w-5 h-5" />
+        </Button>
+      </div>
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
 
       <DialogContent className="sm:max-w-[500px]">
         {view === 'wallets' ? (
@@ -294,5 +310,8 @@ export default function ConnectWallet() {
         )}
       </DialogContent>
     </Dialog>
+
+      <RPCSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </>
   )
 }

@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { useRPCSettings } from "./RPCSettingsProvider";
 
 type ProviderState = {
   // Asset Hub API (for crowdloan contributions)
@@ -44,6 +45,8 @@ export function PolkadotProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { settings } = useRPCSettings();
+
   // Asset Hub connection
   const [assetHubApi, setAssetHubApi] = useState<ApiPromise | null>(null);
   const [assetHubStatus, setAssetHubStatus] =
@@ -61,7 +64,10 @@ export function PolkadotProvider({
     const connectAssetHub = async () => {
       setAssetHubStatus("connecting");
 
-      const endpointsToTry = ASSETHUB_POLKADOT.endpoints;
+      // Use custom RPC if available, otherwise use default endpoints with fallback
+      const endpointsToTry = settings.assetHubRPC
+        ? [settings.assetHubRPC]
+        : ASSETHUB_POLKADOT.endpoints;
       let lastError: Error | null = null;
 
       for (const endpointUrl of endpointsToTry) {
@@ -102,7 +108,7 @@ export function PolkadotProvider({
         assetHubApi.disconnect().catch(console.error);
       }
     };
-  }, []);
+  }, [settings.assetHubRPC]);
 
   // Connect to Relay Chain
   useEffect(() => {
@@ -111,7 +117,10 @@ export function PolkadotProvider({
     const connectRelayChain = async () => {
       setRelayChainStatus("connecting");
 
-      const endpointsToTry = POLKADOT.endpoints;
+      // Use custom RPC if available, otherwise use default endpoints with fallback
+      const endpointsToTry = settings.polkadotRelayRPC
+        ? [settings.polkadotRelayRPC]
+        : POLKADOT.endpoints;
       let lastError: Error | null = null;
 
       for (const endpointUrl of endpointsToTry) {
@@ -152,7 +161,7 @@ export function PolkadotProvider({
         relayChainApi.disconnect().catch(console.error);
       }
     };
-  }, []);
+  }, [settings.polkadotRelayRPC]);
 
   const value = useMemo(
     () => ({
