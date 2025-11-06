@@ -16,6 +16,7 @@ import {
   calculateUnlockDays,
   FetchState,
   formatBalance,
+  formatParaId,
   getFetchStateLabel,
   normalizeAddress,
   PAGE_SIZE,
@@ -541,6 +542,7 @@ export default function LeaseReserve() {
                       (addr) => entry.account.toLowerCase() === addr.toLowerCase()
                     );
                     const unlockDays = calculateUnlockDays(entry.unlockBlockNumber, currentRelayBlock);
+                    const paraIdInfo = formatParaId(entry.paraId);
 
                     return (
                     <tr
@@ -549,8 +551,8 @@ export default function LeaseReserve() {
                         isSearchedAccount ? 'bg-pink-500/10 border-pink-500/30' : ''
                       }`}
                     >
-                      <td className="py-3 px-4 text-white/90">
-                        {entry.paraId}
+                      <td className="py-3 px-4 text-white/90" title={paraIdInfo.tooltip}>
+                        {paraIdInfo.display}
                       </td>
                       <td className="py-3 px-4 text-white/90">
                         {entry.unlockBlockNumber}

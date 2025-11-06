@@ -61,3 +61,27 @@ export const formatBalance = (
     maximumFractionDigits: 2,
   })} ${tokenSymbol}`;
 };
+
+// Para ID mapping interface
+export interface ParaIdMapping {
+  display: string;
+  tooltip?: string;
+}
+
+// Para ID lookup map - add more entries as needed
+export const PARA_ID_MAP: Record<string, ParaIdMapping> = {
+  "2043": {
+    display: "2043 / 3360",
+    tooltip: "NeuroWeb lease swap, see https://hackmd.io/@ePxWAFa1TbKm0U5Ym3IqgQ/Bk3XiAmlC",
+  },
+  "3356": {
+    display: "2030 / 3356",
+    tooltip: "Bifrost least swap, see https://polkadot.polkassembly.io/referenda/524"
+  },
+};
+
+// Format Para ID with optional mapping
+export const formatParaId = (paraId: string): ParaIdMapping => {
+  const mapping = PARA_ID_MAP[paraId];
+  return mapping || { display: paraId };
+};

@@ -16,6 +16,7 @@ import {
   calculateUnlockDays,
   FetchState,
   formatBalance,
+  formatParaId,
   getFetchStateLabel,
   normalizeAddress,
   PAGE_SIZE,
@@ -397,7 +398,7 @@ export default function CrowdloanContributions() {
           Crowdloan Contributions
         </h1>
         <p className="text-white/60">
-          Connect your wallet or search for accounts to view contributions
+          Connect your wallet or search for accounts to view contributions. Some contributions may have multiple Para IDs attached, depending on whether lease swaps were made.
         </p>
       </div>
 
@@ -546,6 +547,7 @@ export default function CrowdloanContributions() {
                       (addr) => contribution.account.toLowerCase() === addr.toLowerCase()
                     );
                     const unlockDays = calculateUnlockDays(contribution.unlockBlockNumber, currentRelayBlock);
+                    const paraIdInfo = formatParaId(contribution.paraId);
 
                     return (
                     <tr
@@ -554,8 +556,8 @@ export default function CrowdloanContributions() {
                         isSearchedAccount ? 'bg-pink-500/10 border-pink-500/30' : ''
                       }`}
                     >
-                      <td className="py-3 px-4 text-white/90">
-                        {contribution.paraId}
+                      <td className="py-3 px-4 text-white/90" title={paraIdInfo.tooltip}>
+                        {paraIdInfo.display}
                       </td>
                       <td className="py-3 px-4 text-white/90">
                         {contribution.unlockBlockNumber}
