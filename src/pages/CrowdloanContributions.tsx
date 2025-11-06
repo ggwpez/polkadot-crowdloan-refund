@@ -345,7 +345,7 @@ export default function CrowdloanContributions() {
       </Card>
 
       <Card>
-        <CardContent>
+        <CardContent className="pt-6">
           {loading ? (
             <div className="space-y-3">
               <LoadingSkeleton />
