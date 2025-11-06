@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { usePolkadot } from "@/providers/PolkadotProvider";
 import { useRPCSettings } from "@/providers/RPCSettingsProvider";
 import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTypink } from "typink";
@@ -40,6 +40,7 @@ export default function CrowdloanContributions() {
   const [currentRelayBlock, setCurrentRelayBlock] = useState<number | null>(null);
   const [lastQueryTime, setLastQueryTime] = useState<number>(0);
   const [cachedEntries, setCachedEntries] = useState<ContributionEntry[]>([]);
+  const [unlockingRows, setUnlockingRows] = useState<Set<string>>(new Set());
 
   // Convert connected account address to Polkadot SS58 format (prefix 0)
   const connectedAccountPolkadot = useMemo(() => {
@@ -178,6 +179,79 @@ export default function CrowdloanContributions() {
     }
   };
 
+  // Handle unlocking a crowdloan contribution
+  const handleUnlock = async (contribution: ContributionEntry) => {
+    if (!relayChainApi || !connectedAccount) {
+      alert("Please connect your wallet and ensure relay chain API is connected");
+      return;
+    }
+
+    const rowKey = `${contribution.paraId}-${contribution.account}`;
+
+    // Check if already unlocking
+    if (unlockingRows.has(rowKey)) {
+      return;
+    }
+
+    try {
+      setUnlockingRows((prev) => new Set(prev).add(rowKey));
+
+      // Create the withdraw extrinsic
+      const tx = relayChainApi.tx.crowdloan.withdraw(
+        contribution.account,
+        contribution.paraId
+      );
+
+      console.log(`[Unlock] Submitting withdraw for paraId ${contribution.paraId}, account ${contribution.account}`);
+
+      // Sign and send the transaction
+      await tx.signAndSend(
+        connectedAccount.address,
+        { signer: connectedAccount.signer },
+        ({ status, events, dispatchError }) => {
+          if (status.isInBlock) {
+            console.log(`[Unlock] Transaction included in block hash: ${status.asInBlock.toHex()}`);
+          }
+
+          if (status.isFinalized) {
+            console.log(`[Unlock] Transaction finalized in block hash: ${status.asFinalized.toHex()}`);
+
+            if (dispatchError) {
+              if (dispatchError.isModule) {
+                const decoded = relayChainApi.registry.findMetaError(dispatchError.asModule);
+                console.error(`[Unlock] Error: ${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`);
+                alert(`Transaction failed: ${decoded.section}.${decoded.name}`);
+              } else {
+                console.error(`[Unlock] Error: ${dispatchError.toString()}`);
+                alert(`Transaction failed: ${dispatchError.toString()}`);
+              }
+            } else {
+              alert("Unlock transaction successful! The funds should be available in your account.");
+              // Refresh the contributions list after a short delay
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+            }
+
+            setUnlockingRows((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(rowKey);
+              return newSet;
+            });
+          }
+        }
+      );
+    } catch (err) {
+      console.error("[Unlock] Error:", err);
+      alert(`Failed to unlock: ${err instanceof Error ? err.message : String(err)}`);
+      setUnlockingRows((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(rowKey);
+        return newSet;
+      });
+    }
+  };
+
   // Calculate estimated unlock duration in days
   const calculateUnlockDays = (unlockBlock: string): number | null => {
     if (!currentRelayBlock) return null;
@@ -185,13 +259,15 @@ export default function CrowdloanContributions() {
     const unlockBlockNum = Number(unlockBlock);
     const blocksRemaining = unlockBlockNum - currentRelayBlock;
 
-    if (blocksRemaining <= 0) return 0; // Already unlocked
+    // If already past unlock block, return 0 (no negative days)
+    if (blocksRemaining <= 0) return 0;
 
     // 6.6 seconds per block, convert to days
     const secondsRemaining = blocksRemaining * 6.6;
     const daysRemaining = secondsRemaining / 86400;
 
-    return daysRemaining;
+    // Extra safety: ensure we never return negative days
+    return Math.max(0, daysRemaining);
   };
 
   // Fetch contributions from RPC (cached for 1 minute)
@@ -515,7 +591,22 @@ export default function CrowdloanContributions() {
                         {unlockDays === null ? (
                           "-"
                         ) : unlockDays === 0 ? (
-                          "Unlocked"
+                          <Button
+                            variant="gradient"
+                            size="sm"
+                            onClick={() => handleUnlock(contribution)}
+                            disabled={unlockingRows.has(rowKey) || !connectedAccount}
+                            className="gap-1"
+                          >
+                            {unlockingRows.has(rowKey) ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Unlocking...
+                              </>
+                            ) : (
+                              "Unlock"
+                            )}
+                          </Button>
                         ) : unlockDays < 1 ? (
                           "< 1"
                         ) : (
