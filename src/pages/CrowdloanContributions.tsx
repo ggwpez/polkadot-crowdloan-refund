@@ -403,19 +403,26 @@ export default function CrowdloanContributions() {
                       <td className="py-3 px-4 font-mono text-sm text-white/90">
                         <button
                           onClick={() => copyToClipboard(contribution.account, rowKey)}
-                          className="hover:text-pink-400 transition-colors cursor-pointer inline-flex items-center gap-2"
+                          className={`hover:text-pink-400 transition-colors cursor-pointer ${
+                            copiedRowKey === rowKey ? 'animate-[blink_0.3s_ease-in-out_2]' : ''
+                          }`}
                           title="Click to copy address"
                         >
                           {contribution.account.slice(0, 8)}...
                           {contribution.account.slice(-8)}
-                          {copiedRowKey === rowKey && (
-                            <span className="text-green-400 text-xs font-sans">✓ Copied</span>
-                          )}
                         </button>
                       </td>
                       <td className="py-3 px-4 text-white/90 font-mono text-sm">
-                        {contribution.fundPot.slice(0, 8)}...
-                        {contribution.fundPot.slice(-8)}
+                        <button
+                          onClick={() => copyToClipboard(contribution.fundPot, `${rowKey}-fundpot`)}
+                          className={`hover:text-pink-400 transition-colors cursor-pointer ${
+                            copiedRowKey === `${rowKey}-fundpot` ? 'animate-[blink_0.3s_ease-in-out_2]' : ''
+                          }`}
+                          title="Click to copy fund pot address"
+                        >
+                          {contribution.fundPot.slice(0, 8)}...
+                          {contribution.fundPot.slice(-8)}
+                        </button>
                       </td>
                       <td className="py-3 px-4 text-right text-white/90">
                         {(Number(contribution.balance) / Math.pow(10, tokenDecimals)).toLocaleString(undefined, {
