@@ -83,6 +83,21 @@ export default function CrowdloanContributions() {
       .filter((addr): addr is string => addr !== null);
   }, [searchAccountsList]);
 
+  // Count contributions per searched account
+  const accountContributionCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    searchAccountsList.forEach((account) => {
+      const normalized = normalizeAddress(account);
+      if (normalized) {
+        const count = contributions.filter(
+          (c) => c.account.toLowerCase() === normalized.toLowerCase()
+        ).length;
+        counts[account] = count;
+      }
+    });
+    return counts;
+  }, [searchAccountsList, contributions]);
+
   // Add account to the list
   const addAccount = () => {
     const trimmed = newAccountInput.trim();
@@ -166,10 +181,9 @@ export default function CrowdloanContributions() {
           }
         );
 
-        // Sort contributions: search accounts first, then others
+        // Sort contributions: search accounts first, then by Para ID, Unlock Block, Account, Balance
         const sortedEntries = formattedEntries.sort((a, b) => {
-          if (searchAccounts.length === 0) return 0;
-
+          // First, prioritize searched accounts
           const aIsSearched = searchAccounts.some(
             (addr) => a.account.toLowerCase() === addr.toLowerCase()
           );
@@ -179,7 +193,21 @@ export default function CrowdloanContributions() {
 
           if (aIsSearched && !bIsSearched) return -1;
           if (!aIsSearched && bIsSearched) return 1;
-          return 0;
+
+          // Then sort by Para ID
+          const paraIdCompare = Number(a.paraId) - Number(b.paraId);
+          if (paraIdCompare !== 0) return paraIdCompare;
+
+          // Then by Unlock Block
+          const blockCompare = Number(a.unlockBlockNumber) - Number(b.unlockBlockNumber);
+          if (blockCompare !== 0) return blockCompare;
+
+          // Then by Account
+          const accountCompare = a.account.localeCompare(b.account);
+          if (accountCompare !== 0) return accountCompare;
+
+          // Finally by Balance
+          return Number(a.balance) - Number(b.balance);
         });
 
         setContributions(sortedEntries);
@@ -266,26 +294,50 @@ export default function CrowdloanContributions() {
 
             {/* List of accounts */}
             {searchAccountsList.length > 0 && (
-              <div className="space-y-2">
-                {searchAccountsList.map((account, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10"
-                  >
-                    <span className="flex-1 font-mono text-sm text-white/90 truncate">
-                      {account}
-                    </span>
-                    <Button
-                      onClick={() => removeAccount(account)}
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10"
-                      title="Remove account"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left py-2 px-3 text-white/80 font-semibold text-sm">
+                        Account
+                      </th>
+                      <th className="text-center py-2 px-3 text-white/80 font-semibold text-sm">
+                        Found
+                      </th>
+                      <th className="text-right py-2 px-3 text-white/80 font-semibold text-sm">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchAccountsList.map((account, idx) => (
+                      <tr
+                        key={idx}
+                        className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                      >
+                        <td className="py-3 px-3 font-mono text-sm text-white/90">
+                          {account}
+                        </td>
+                        <td className="py-3 px-3 text-center text-white/90">
+                          <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-pink-500/20 text-pink-300 text-xs font-semibold">
+                            {accountContributionCounts[account] || 0}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <Button
+                            onClick={() => removeAccount(account)}
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                            title="Remove account"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -312,10 +364,10 @@ export default function CrowdloanContributions() {
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="text-left py-3 px-4 text-white/80 font-semibold">
-                      Unlock Block
+                      Para ID
                     </th>
                     <th className="text-left py-3 px-4 text-white/80 font-semibold">
-                      Para ID
+                      Unlock Block
                     </th>
                     <th className="text-left py-3 px-4 text-white/80 font-semibold">
                       Account
@@ -343,10 +395,10 @@ export default function CrowdloanContributions() {
                       }`}
                     >
                       <td className="py-3 px-4 text-white/90">
-                        {contribution.unlockBlockNumber}
+                        {contribution.paraId}
                       </td>
                       <td className="py-3 px-4 text-white/90">
-                        {contribution.paraId}
+                        {contribution.unlockBlockNumber}
                       </td>
                       <td className="py-3 px-4 font-mono text-sm text-white/90">
                         <button
