@@ -25,7 +25,6 @@ import {
 } from "@/utils/ahOpsUtils";
 import { Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { useTypink } from "typink";
 
 interface CrowdloanReserveEntry {
@@ -42,7 +41,6 @@ export default function CrowdloanReserve() {
   const { api, status, relayChainApi, relayChainStatus } = usePolkadot();
   const { connectedAccount } = useTypink();
   const { settings } = useRPCSettings();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState<CrowdloanReserveEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,21 +60,11 @@ export default function CrowdloanReserve() {
     [connectedAccount]
   );
 
-  // Initialize accounts list from URL params
-  useEffect(() => {
-    const accountsParam = searchParams.get("accounts");
-    if (accountsParam) {
-      const accounts = accountsParam.split(",").map(a => a.trim()).filter(Boolean);
-      setSearchAccountsList(accounts);
-    }
-  }, []);
-
   // Add connected account to the list when wallet is connected
   useEffect(() => {
     if (connectedAccountPolkadot && !searchAccountsList.includes(connectedAccountPolkadot)) {
       const newList = [...searchAccountsList, connectedAccountPolkadot];
       setSearchAccountsList(newList);
-      setSearchParams({ accounts: newList.join(",") });
     }
   }, [connectedAccountPolkadot]);
 
@@ -145,14 +133,12 @@ export default function CrowdloanReserve() {
 
     const newList = [trimmed, ...searchAccountsList];
     setSearchAccountsList(newList);
-    setSearchParams({ accounts: newList.join(",") });
     setNewAccountInput("");
   };
 
   const removeAccount = (address: string) => {
     const newList = searchAccountsList.filter(a => a !== address);
     setSearchAccountsList(newList);
-    setSearchParams(newList.length > 0 ? { accounts: newList.join(",") } : {});
   };
 
   const copyToClipboard = async (address: string, rowKey: string) => {

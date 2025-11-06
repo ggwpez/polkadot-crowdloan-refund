@@ -68,17 +68,87 @@ export interface ParaIdMapping {
   tooltip?: string;
 }
 
-// Para ID lookup map - add more entries as needed
-export const PARA_ID_MAP: Record<string, ParaIdMapping> = {
-  "2043": {
-    display: "2043 / 3360",
+// Para ID swap group - represents a set of Para IDs that have been swapped together
+interface ParaIdSwapGroup {
+  ids: string[];
+  tooltip: string;
+}
+
+// Para ID swap groups - add more entries as needed
+const PARA_ID_SWAP_GROUPS: ParaIdSwapGroup[] = [
+  {
+    ids: ["2043", "3360"],
     tooltip: "NeuroWeb lease swap, see https://hackmd.io/@ePxWAFa1TbKm0U5Ym3IqgQ/Bk3XiAmlC",
   },
-  "3356": {
-    display: "2030 / 3356",
-    tooltip: "Bifrost least swap, see https://polkadot.polkassembly.io/referenda/524"
+  {
+    ids: ["2030", "3356"],
+    tooltip: "Bifrost lease swap, see https://polkadot.polkassembly.io/referenda/524",
   },
+  {
+    ids: ["3417", "3340"],
+    tooltip: "Para ID swap: 3417 ↔ 3340 (2025-07-18)",
+  },
+  {
+    ids: ["3359", "2039"],
+    tooltip: "Para ID swap: 3359 ↔ 2039 (2024-10-20)",
+  },
+  {
+    ids: ["3378", "2019", "2052"],
+    tooltip: "Para ID swaps: 3378 ↔ 2019 (2024-10-19), 2052 ↔ 2019 (2024-01-11)",
+  },
+  {
+    ids: ["2008", "3375"],
+    tooltip: "Para ID swap: 2008 ↔ 3375 (2024-08-08)",
+  },
+  {
+    ids: ["2086", "3358"],
+    tooltip: "Para ID swap: 2086 ↔ 3358 (2024-07-19)",
+  },
+  {
+    ids: ["2046", "2003"],
+    tooltip: "Para ID swap: 2046 ↔ 2003 (2024-04-19)",
+  },
+  {
+    ids: ["2040", "2097"],
+    tooltip: "Para ID swap: 2040 ↔ 2097 (2024-04-09)",
+  },
+  {
+    ids: ["3334", "3369"],
+    tooltip: "Para ID swap: 3334 ↔ 3369 (2024-03-20)",
+  },
+  {
+    ids: ["3350", "2012", "3351", "2026"],
+    tooltip: "Para ID swaps: 3350 ↔ 2012 (2024-01-16), 3351 ↔ 2012 & 2026 (2023-10-24)",
+  },
+  {
+    ids: ["2031", "3353"],
+    tooltip: "Para ID swap: 2031 ↔ 3353 (2023-11-05)",
+  },
+  {
+    ids: ["3342", "2004"],
+    tooltip: "Para ID swap: 3342 ↔ 2004 (2023-10-12)",
+  },
+];
+
+// Build lookup map from swap groups
+const buildParaIdMap = (): Record<string, ParaIdMapping> => {
+  const map: Record<string, ParaIdMapping> = {};
+
+  for (const group of PARA_ID_SWAP_GROUPS) {
+    const display = group.ids.join(" / ");
+    for (const id of group.ids) {
+      map[id] = {
+        display,
+        tooltip: group.tooltip,
+      };
+    }
+  }
+
+  return map;
 };
+
+// Para ID lookup map - generated from swap groups
+export const PARA_ID_MAP: Record<string, ParaIdMapping> = buildParaIdMap();
 
 // Format Para ID with optional mapping
 export const formatParaId = (paraId: string): ParaIdMapping => {
