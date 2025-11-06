@@ -1,13 +1,17 @@
-import { Wallet } from "lucide-react";
+import { Wallet, Lock, Building2 } from "lucide-react";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import ConnectWallet from "./components/ConnectWallet";
 import CrowdloanContributions from "./pages/CrowdloanContributions";
+import LeaseReserve from "./pages/LeaseReserve";
+import CrowdloanReserve from "./pages/CrowdloanReserve";
 import { PolkadotProvider } from "./providers/PolkadotProvider";
 import { RPCSettingsProvider } from "./providers/RPCSettingsProvider";
 
 function Navigation() {
   const links = [
     { to: "/", label: "Crowdloan Contributions", icon: Wallet },
+    { to: "/lease-reserve", label: "Lease Reserves", icon: Lock },
+    { to: "/crowdloan-reserve", label: "Crowdloan Reserves", icon: Building2 },
   ];
 
   return (
@@ -79,6 +83,8 @@ export default function App() {
             <main className="pt-16">
               <Routes>
                 <Route path="/" element={<CrowdloanContributions />} />
+                <Route path="/lease-reserve" element={<LeaseReserve />} />
+                <Route path="/crowdloan-reserve" element={<CrowdloanReserve />} />
               </Routes>
             </main>
             <Footer />

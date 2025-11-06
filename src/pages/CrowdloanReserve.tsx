@@ -27,23 +27,22 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTypink } from "typink";
 
-interface ContributionEntry {
+interface CrowdloanReserveEntry {
   unlockBlockNumber: string;
   paraId: string;
   account: string;
-  fundPot: string;
   balance: string;
 }
 
-const getRowKey = (contribution: ContributionEntry): string =>
-  `${contribution.unlockBlockNumber}-${contribution.paraId}-${contribution.account}`;
+const getRowKey = (entry: CrowdloanReserveEntry): string =>
+  `${entry.unlockBlockNumber}-${entry.paraId}-${entry.account}`;
 
-export default function CrowdloanContributions() {
+export default function CrowdloanReserve() {
   const { api, status, relayChainApi, relayChainStatus } = usePolkadot();
   const { connectedAccount } = useTypink();
   const { settings } = useRPCSettings();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [contributions, setContributions] = useState<ContributionEntry[]>([]);
+  const [entries, setEntries] = useState<CrowdloanReserveEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tokenDecimals, setTokenDecimals] = useState<number>(10);
@@ -53,7 +52,7 @@ export default function CrowdloanContributions() {
   const [newAccountInput, setNewAccountInput] = useState<string>("");
   const [currentRelayBlock, setCurrentRelayBlock] = useState<number | null>(null);
   const [lastQueryTime, setLastQueryTime] = useState<number>(0);
-  const [cachedEntries, setCachedEntries] = useState<ContributionEntry[]>([]);
+  const [cachedEntries, setCachedEntries] = useState<CrowdloanReserveEntry[]>([]);
   const [unlockingRows, setUnlockingRows] = useState<Set<string>>(new Set());
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
 
@@ -114,18 +113,18 @@ export default function CrowdloanContributions() {
     [searchAccountsList]
   );
 
-  const accountContributionCounts = useMemo(() => {
+  const accountEntryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     searchAccountsList.forEach((account) => {
       const normalized = normalizeAddress(account);
       if (normalized) {
-        counts[account] = contributions.filter(
-          (c) => c.account.toLowerCase() === normalized.toLowerCase()
+        counts[account] = entries.filter(
+          (e) => e.account.toLowerCase() === normalized.toLowerCase()
         ).length;
       }
     });
     return counts;
-  }, [searchAccountsList, contributions]);
+  }, [searchAccountsList, entries]);
 
   // Add account to the list
   const addAccount = () => {
@@ -165,13 +164,13 @@ export default function CrowdloanContributions() {
     }
   };
 
-  const handleUnlock = async (contribution: ContributionEntry) => {
+  const handleUnlock = async (entry: CrowdloanReserveEntry) => {
     if (!api || !connectedAccount) {
       alert("Please connect your wallet and ensure Asset Hub API is connected");
       return;
     }
 
-    const rowKey = getRowKey(contribution);
+    const rowKey = getRowKey(entry);
     if (unlockingRows.has(rowKey)) return;
 
     try {
@@ -186,14 +185,14 @@ export default function CrowdloanContributions() {
       // Get the injector for the connected account
       const injector = await web3FromAddress(connectedAccount.address);
 
-      // Create the withdraw extrinsic using AhOps pallet on Asset Hub
-      const tx = api.tx.ahOps.withdrawCrowdloanContribution(
-        contribution.unlockBlockNumber,
-        contribution.account,
-        contribution.paraId
+      // Create the unreserve extrinsic using AhOps pallet on Asset Hub
+      const tx = api.tx.ahOps.unreserveCrowdloanReserve(
+        entry.unlockBlockNumber,
+        entry.account,
+        entry.paraId
       );
 
-      console.log(`[Unlock] Submitting withdrawCrowdloanContribution for paraId ${contribution.paraId}, account ${contribution.account}, block ${contribution.unlockBlockNumber}`);
+      console.log(`[Unlock] Submitting unreserveCrowdloanReserve for paraId ${entry.paraId}, account ${entry.account}, block ${entry.unlockBlockNumber}`);
 
       // Sign and send the transaction
       await tx.signAndSend(
@@ -217,8 +216,8 @@ export default function CrowdloanContributions() {
                 alert(`Transaction failed: ${dispatchError.toString()}`);
               }
             } else {
-              alert("Unlock transaction successful! The funds have been withdrawn to your account.");
-              // Refresh the contributions list after a short delay
+              alert("Unlock transaction successful! The crowdloan reserve has been unreserved.");
+              // Refresh the entries list after a short delay
               setTimeout(() => {
                 window.location.reload();
               }, 2000);
@@ -244,7 +243,7 @@ export default function CrowdloanContributions() {
   };
 
   useEffect(() => {
-    async function fetchContributions() {
+    async function fetchCrowdloanReserves() {
       if (!api || status !== "connected") {
         setLoading(true);
         return;
@@ -252,7 +251,7 @@ export default function CrowdloanContributions() {
 
       const now = Date.now();
       if (cachedEntries.length > 0 && now - lastQueryTime < CACHE_DURATION_MS) {
-        console.log("Using cached contributions data");
+        console.log("Using cached crowdloan reserve data");
         return;
       }
 
@@ -260,39 +259,38 @@ export default function CrowdloanContributions() {
         setLoading(true);
         setFetchState({ status: "fetching", currentCount: 0 });
         setError(null);
-        setContributions([]);
+        setEntries([]);
 
-        console.log("Fetching contributions from RPC...");
+        console.log("Fetching crowdloan reserves from RPC...");
 
         const properties = await api.rpc.system.properties();
         setTokenDecimals(Number(properties.tokenDecimals.unwrapOr([10])[0]));
         setTokenSymbol(properties.tokenSymbol.unwrapOr(["DOT"])[0].toString());
 
-        const allFormattedEntries: ContributionEntry[] = [];
+        const allFormattedEntries: CrowdloanReserveEntry[] = [];
         let itemsSinceLastUpdate = 0;
         let lastKey: string | undefined;
         let pageCount = 0;
 
         while (true) {
-          const entries: any = await api.query.ahOps.rcCrowdloanContribution.entriesPaged({
+          const queryEntries: any = await api.query.ahOps.rcCrowdloanReserve.entriesPaged({
             args: [],
             pageSize: PAGE_SIZE,
             startKey: lastKey,
           });
 
-          if (entries.length === 0) break;
+          if (queryEntries.length === 0) break;
 
           pageCount++;
 
-          const formattedBatch = entries.map(([key, value]: any) => {
+          const formattedBatch = queryEntries.map(([key, value]: any) => {
             const [unlockBlockNumber, paraId, account] = key.args;
-            const [fundPot, balance] = value.toJSON() as any[];
+            const balance = value.toJSON() as string;
 
             return {
               unlockBlockNumber: unlockBlockNumber.toString(),
               paraId: paraId.toString(),
               account: account.toString(),
-              fundPot: fundPot.toString(),
               balance: balance.toString(),
             };
           });
@@ -307,9 +305,9 @@ export default function CrowdloanContributions() {
           }
 
           if (pageCount === 1) setLoading(false);
-          if (entries.length < PAGE_SIZE) break;
+          if (queryEntries.length < PAGE_SIZE) break;
 
-          lastKey = entries[entries.length - 1][0].toHex();
+          lastKey = queryEntries[queryEntries.length - 1][0].toHex();
           await new Promise(resolve => setTimeout(resolve, 0));
         }
 
@@ -318,19 +316,19 @@ export default function CrowdloanContributions() {
         setLastQueryTime(now);
         setFetchState({ status: "complete", totalCount: allFormattedEntries.length });
       } catch (err) {
-        console.error("Error fetching contributions:", err);
+        console.error("Error fetching crowdloan reserves:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to fetch contributions"
+          err instanceof Error ? err.message : "Failed to fetch crowdloan reserves"
         );
         setLoading(false);
         setFetchState({ status: "idle" });
       }
     }
 
-    fetchContributions();
+    fetchCrowdloanReserves();
   }, [api, status]);
 
-  // Sort and display contributions whenever cache or search accounts change
+  // Sort and display entries whenever cache or search accounts change
   useEffect(() => {
     if (cachedEntries.length === 0) return;
 
@@ -362,8 +360,8 @@ export default function CrowdloanContributions() {
       return Number(a.balance) - Number(b.balance);
     });
 
-    // Set all sorted contributions at once
-    setContributions(sortedEntries);
+    // Set all sorted entries at once
+    setEntries(sortedEntries);
   }, [cachedEntries, searchAccounts]);
 
   if (status === "connecting") {
@@ -394,10 +392,10 @@ export default function CrowdloanContributions() {
     <div className="container mx-auto px-6 py-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-2">
-          Relay Chain Crowdloan Contributions
+          Relay Chain Crowdloan Reserves
         </h1>
         <p className="text-white/60">
-          Connect your wallet or search for accounts to view contributions
+          Reserve taken for creating crowdloans (normally 500 DOT)
         </p>
       </div>
 
@@ -470,7 +468,7 @@ export default function CrowdloanContributions() {
                         </td>
                         <td className="py-3 px-3 text-center text-white/90">
                           <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-pink-500/20 text-pink-300 text-xs font-semibold">
-                            {accountContributionCounts[account] || 0}
+                            {accountEntryCounts[account] || 0}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-right">
@@ -510,9 +508,9 @@ export default function CrowdloanContributions() {
             <div className="text-red-400 p-4 rounded-lg bg-red-400/10">
               {error}
             </div>
-          ) : contributions.length === 0 ? (
+          ) : entries.length === 0 ? (
             <div className="text-white/60 p-4 text-center">
-              No contributions found in the storage map
+              No crowdloan reserves found in the storage map
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -531,21 +529,18 @@ export default function CrowdloanContributions() {
                     <th className="text-left py-3 px-4 text-white/80 font-semibold">
                       Account
                     </th>
-                    <th className="text-left py-3 px-4 text-white/80 font-semibold">
-                      Fund Pot
-                    </th>
                     <th className="text-right py-3 px-4 text-white/80 font-semibold">
                       Balance
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {contributions.map((contribution) => {
-                    const rowKey = getRowKey(contribution);
+                  {entries.map((entry) => {
+                    const rowKey = getRowKey(entry);
                     const isSearchedAccount = searchAccounts.some(
-                      (addr) => contribution.account.toLowerCase() === addr.toLowerCase()
+                      (addr) => entry.account.toLowerCase() === addr.toLowerCase()
                     );
-                    const unlockDays = calculateUnlockDays(contribution.unlockBlockNumber, currentRelayBlock);
+                    const unlockDays = calculateUnlockDays(entry.unlockBlockNumber, currentRelayBlock);
 
                     return (
                     <tr
@@ -555,10 +550,10 @@ export default function CrowdloanContributions() {
                       }`}
                     >
                       <td className="py-3 px-4 text-white/90">
-                        {contribution.paraId}
+                        {entry.paraId}
                       </td>
                       <td className="py-3 px-4 text-white/90">
-                        {contribution.unlockBlockNumber}
+                        {entry.unlockBlockNumber}
                       </td>
                       <td className="py-3 px-4 text-white/90">
                         {unlockDays === null ? (
@@ -567,7 +562,7 @@ export default function CrowdloanContributions() {
                           <Button
                             variant="gradient"
                             size="sm"
-                            onClick={() => handleUnlock(contribution)}
+                            onClick={() => handleUnlock(entry)}
                             disabled={unlockingRows.has(rowKey) || !connectedAccount}
                             className="gap-1"
                           >
@@ -588,28 +583,17 @@ export default function CrowdloanContributions() {
                       </td>
                       <td className="py-3 px-4 font-mono text-sm text-white/90">
                         <button
-                          onClick={() => copyToClipboard(contribution.account, rowKey)}
+                          onClick={() => copyToClipboard(entry.account, rowKey)}
                           className={`hover:text-pink-400 transition-colors cursor-pointer ${
                             copiedRowKey === rowKey ? 'animate-[blink_0.3s_ease-in-out_2]' : ''
                           }`}
                           title="Click to copy address"
                         >
-                          {truncateAddress(contribution.account)}
-                        </button>
-                      </td>
-                      <td className="py-3 px-4 text-white/90 font-mono text-sm">
-                        <button
-                          onClick={() => copyToClipboard(contribution.fundPot, `${rowKey}-fundpot`)}
-                          className={`hover:text-pink-400 transition-colors cursor-pointer ${
-                            copiedRowKey === `${rowKey}-fundpot` ? 'animate-[blink_0.3s_ease-in-out_2]' : ''
-                          }`}
-                          title="Click to copy fund pot address"
-                        >
-                          {truncateAddress(contribution.fundPot)}
+                          {truncateAddress(entry.account)}
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right text-white/90">
-                        {formatBalance(contribution.balance, tokenDecimals, tokenSymbol)}
+                        {formatBalance(entry.balance, tokenDecimals, tokenSymbol)}
                       </td>
                     </tr>
                   )})}
