@@ -1,4 +1,5 @@
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
+import { Button } from "@/components/ui/Button";
 import {
   Card,
   CardContent,
@@ -6,14 +7,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/Card";
-import { usePolkadot } from "@/providers/PolkadotProvider";
-import { useEffect, useState, useMemo } from "react";
-import { useTypink } from "typink";
-import { encodeAddress, decodeAddress } from "@polkadot/util-crypto";
-import { useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
+import { usePolkadot } from "@/providers/PolkadotProvider";
+import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
 import { Plus, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useTypink } from "typink";
 
 interface ContributionEntry {
   unlockBlockNumber: string;
@@ -24,7 +24,7 @@ interface ContributionEntry {
 }
 
 export default function CrowdloanContributions() {
-  const { api, status } = usePolkadot();
+  const { api, status, relayChainApi, relayChainStatus } = usePolkadot();
   const { connectedAccount } = useTypink();
   const [searchParams, setSearchParams] = useSearchParams();
   const [contributions, setContributions] = useState<ContributionEntry[]>([]);
@@ -35,6 +35,7 @@ export default function CrowdloanContributions() {
   const [copiedRowKey, setCopiedRowKey] = useState<string | null>(null);
   const [searchAccountsList, setSearchAccountsList] = useState<string[]>([]);
   const [newAccountInput, setNewAccountInput] = useState<string>("");
+  const [currentRelayBlock, setCurrentRelayBlock] = useState<number | null>(null);
 
   // Convert connected account address to Polkadot SS58 format (prefix 0)
   const connectedAccountPolkadot = useMemo(() => {
@@ -65,6 +66,31 @@ export default function CrowdloanContributions() {
       setSearchParams({ accounts: newList.join(",") });
     }
   }, [connectedAccountPolkadot]);
+
+  // Fetch current relay chain block number
+  useEffect(() => {
+    async function fetchCurrentBlock() {
+      if (!relayChainApi || relayChainStatus !== "connected") {
+        return;
+      }
+
+      try {
+        const header = await relayChainApi.rpc.chain.getHeader();
+        const blockNumber = header.number.toNumber();
+        setCurrentRelayBlock(blockNumber);
+        console.log(`[Relay Chain] Current block: ${blockNumber}`);
+      } catch (err) {
+        console.error("Error fetching current relay block:", err);
+      }
+    }
+
+    fetchCurrentBlock();
+
+    // Update block number every 12 seconds (approximately 2 blocks)
+    const interval = setInterval(fetchCurrentBlock, 12000);
+
+    return () => clearInterval(interval);
+  }, [relayChainApi, relayChainStatus]);
 
   // Convert addresses to Polkadot SS58 format
   const normalizeAddress = (address: string): string | null => {
@@ -139,6 +165,22 @@ export default function CrowdloanContributions() {
     } catch (err) {
       console.error("Failed to copy address:", err);
     }
+  };
+
+  // Calculate estimated unlock duration in days
+  const calculateUnlockDays = (unlockBlock: string): number | null => {
+    if (!currentRelayBlock) return null;
+
+    const unlockBlockNum = Number(unlockBlock);
+    const blocksRemaining = unlockBlockNum - currentRelayBlock;
+
+    if (blocksRemaining <= 0) return 0; // Already unlocked
+
+    // 6.6 seconds per block, convert to days
+    const secondsRemaining = blocksRemaining * 6.6;
+    const daysRemaining = secondsRemaining / 86400;
+
+    return daysRemaining;
   };
 
   useEffect(() => {
@@ -370,6 +412,9 @@ export default function CrowdloanContributions() {
                       Unlock Block
                     </th>
                     <th className="text-left py-3 px-4 text-white/80 font-semibold">
+                      Unlock in days
+                    </th>
+                    <th className="text-left py-3 px-4 text-white/80 font-semibold">
                       Account
                     </th>
                     <th className="text-left py-3 px-4 text-white/80 font-semibold">
@@ -386,6 +431,7 @@ export default function CrowdloanContributions() {
                     const isSearchedAccount = searchAccounts.some(
                       (addr) => contribution.account.toLowerCase() === addr.toLowerCase()
                     );
+                    const unlockDays = calculateUnlockDays(contribution.unlockBlockNumber);
 
                     return (
                     <tr
@@ -399,6 +445,17 @@ export default function CrowdloanContributions() {
                       </td>
                       <td className="py-3 px-4 text-white/90">
                         {contribution.unlockBlockNumber}
+                      </td>
+                      <td className="py-3 px-4 text-white/90">
+                        {unlockDays === null ? (
+                          "-"
+                        ) : unlockDays === 0 ? (
+                          "Unlocked"
+                        ) : unlockDays < 1 ? (
+                          "< 1"
+                        ) : (
+                          Math.round(unlockDays).toString()
+                        )}
                       </td>
                       <td className="py-3 px-4 font-mono text-sm text-white/90">
                         <button

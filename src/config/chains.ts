@@ -223,12 +223,11 @@ export function getTestnets(): ChainConfig[] {
 }
 
 /**
- * Default chain ID from environment or fallback to AssetHub Polkadot
+ * Default chain - always AssetHub Polkadot
  */
-export const DEFAULT_CHAIN_ID =
-  (import.meta as any).env?.VITE_DEFAULT_CHAIN || "assethub-polkadot";
+export const DEFAULT_CHAIN_ID = "assethub-polkadot";
 
 /**
  * Default chain configuration
  */
-export const DEFAULT_CHAIN = getChainConfig(DEFAULT_CHAIN_ID) || ASSETHUB_POLKADOT;
+export const DEFAULT_CHAIN = ASSETHUB_POLKADOT;

@@ -1,7 +1,6 @@
 import { Wallet } from "lucide-react";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import ConnectWallet from "./components/ConnectWallet";
-import { NetworkSwitcher } from "./components/NetworkSwitcher";
 import CrowdloanContributions from "./pages/CrowdloanContributions";
 import { PolkadotProvider } from "./providers/PolkadotProvider";
 
@@ -36,7 +35,6 @@ function Navigation() {
           </div>
 
           <div className="flex items-center gap-3">
-            <NetworkSwitcher />
             <ConnectWallet />
           </div>
         </div>

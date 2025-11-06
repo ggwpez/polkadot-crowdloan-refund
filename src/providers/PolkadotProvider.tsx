@@ -1,4 +1,4 @@
-import { CHAINS, DEFAULT_CHAIN } from "@/config/chains";
+import { ASSETHUB_POLKADOT, POLKADOT } from "@/config/chains";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import React, {
   createContext,
@@ -9,17 +9,26 @@ import React, {
 } from "react";
 
 type ProviderState = {
+  // Asset Hub API (for crowdloan contributions)
+  assetHubApi: ApiPromise | null;
+  assetHubStatus: "not-connected" | "connecting" | "connected" | "error";
+
+  // Relay Chain API (for relay chain data)
+  relayChainApi: ApiPromise | null;
+  relayChainStatus: "not-connected" | "connecting" | "connected" | "error";
+
+  // Legacy API for backward compatibility (points to Asset Hub)
   api: ApiPromise | null;
   status: "not-connected" | "connecting" | "connected" | "error";
-  currentEndpoint: string;
-  switchNetwork: (newEndpoint: string) => Promise<void>;
 };
 
 const PolkadotContext = createContext<ProviderState>({
+  assetHubApi: null,
+  assetHubStatus: "not-connected",
+  relayChainApi: null,
+  relayChainStatus: "not-connected",
   api: null,
   status: "not-connected",
-  currentEndpoint: DEFAULT_CHAIN.endpoint,
-  switchNetwork: async () => {},
 });
 
 export function usePolkadot() {
@@ -32,54 +41,34 @@ export function usePolkadotContext() {
 
 export function PolkadotProvider({
   children,
-  endpoint,
 }: {
   children: React.ReactNode;
-  endpoint?: string;
 }) {
-  // Get initial endpoint from localStorage or use default
-  const getInitialEndpoint = () => {
-    if (endpoint) return endpoint;
-    const savedNetwork = localStorage.getItem("selected_network");
-    if (savedNetwork) {
-      const savedChain = Object.values(CHAINS).find(
-        (c: any) => c.name === savedNetwork
-      );
-      if (savedChain) return (savedChain as any).endpoint;
-    }
-    return DEFAULT_CHAIN.endpoint;
-  };
+  // Asset Hub connection
+  const [assetHubApi, setAssetHubApi] = useState<ApiPromise | null>(null);
+  const [assetHubStatus, setAssetHubStatus] =
+    useState<ProviderState["assetHubStatus"]>("not-connected");
 
-  const [currentEndpoint, setCurrentEndpoint] =
-    useState<string>(getInitialEndpoint());
-  const [api, setApi] = useState<ApiPromise | null>(null);
-  const [status, setStatus] =
-    useState<ProviderState["status"]>("not-connected");
+  // Relay Chain connection
+  const [relayChainApi, setRelayChainApi] = useState<ApiPromise | null>(null);
+  const [relayChainStatus, setRelayChainStatus] =
+    useState<ProviderState["relayChainStatus"]>("not-connected");
 
+  // Connect to Asset Hub
   useEffect(() => {
     let mounted = true;
 
-    const connectWithFallback = async () => {
-      setStatus("connecting");
+    const connectAssetHub = async () => {
+      setAssetHubStatus("connecting");
 
-      // Find chain config for current endpoint to get all fallback endpoints
-      const chainConfig = Object.values(CHAINS).find(
-        (c) =>
-          c.endpoint === currentEndpoint ||
-          c.endpoints.includes(currentEndpoint)
-      );
-
-      // Use all endpoints if available, otherwise just the current one
-      const endpointsToTry = chainConfig?.endpoints || [currentEndpoint];
-
+      const endpointsToTry = ASSETHUB_POLKADOT.endpoints;
       let lastError: Error | null = null;
 
-      // Try each endpoint in order
       for (const endpointUrl of endpointsToTry) {
         if (!mounted) return;
 
         try {
-          console.log(`Attempting to connect to: ${endpointUrl}`);
+          console.log(`[Asset Hub] Attempting to connect to: ${endpointUrl}`);
           const provider = new WsProvider(endpointUrl);
           const apiInstance = await ApiPromise.create({ provider });
           await apiInstance.isReady;
@@ -89,55 +78,93 @@ export function PolkadotProvider({
             return;
           }
 
-          console.log(`Successfully connected to: ${endpointUrl}`);
-          setApi(apiInstance);
-          setStatus("connected");
-          return; // Success! Exit the loop
+          console.log(`[Asset Hub] Successfully connected to: ${endpointUrl}`);
+          setAssetHubApi(apiInstance);
+          setAssetHubStatus("connected");
+          return;
         } catch (e) {
-          console.warn(`Failed to connect to ${endpointUrl}:`, e);
+          console.warn(`[Asset Hub] Failed to connect to ${endpointUrl}:`, e);
           lastError = e as Error;
-          // Continue to next endpoint
         }
       }
 
-      // If we get here, all endpoints failed
       if (mounted) {
-        console.error("Failed to connect to any endpoint", lastError);
-        setStatus("error");
+        console.error("[Asset Hub] Failed to connect to any endpoint", lastError);
+        setAssetHubStatus("error");
       }
     };
 
-    connectWithFallback();
+    connectAssetHub();
 
     return () => {
       mounted = false;
-      if (api) {
-        api.disconnect().catch(console.error);
+      if (assetHubApi) {
+        assetHubApi.disconnect().catch(console.error);
       }
     };
-  }, [currentEndpoint]);
+  }, []);
 
-  const switchNetwork = async (newEndpoint: string) => {
-    if (newEndpoint === currentEndpoint) return;
+  // Connect to Relay Chain
+  useEffect(() => {
+    let mounted = true;
 
-    // Disconnect current API
-    if (api) {
-      await api.disconnect();
-      setApi(null);
-    }
+    const connectRelayChain = async () => {
+      setRelayChainStatus("connecting");
 
-    // Set new endpoint (will trigger useEffect to reconnect)
-    setCurrentEndpoint(newEndpoint);
-  };
+      const endpointsToTry = POLKADOT.endpoints;
+      let lastError: Error | null = null;
+
+      for (const endpointUrl of endpointsToTry) {
+        if (!mounted) return;
+
+        try {
+          console.log(`[Relay Chain] Attempting to connect to: ${endpointUrl}`);
+          const provider = new WsProvider(endpointUrl);
+          const apiInstance = await ApiPromise.create({ provider });
+          await apiInstance.isReady;
+
+          if (!mounted) {
+            await apiInstance.disconnect();
+            return;
+          }
+
+          console.log(`[Relay Chain] Successfully connected to: ${endpointUrl}`);
+          setRelayChainApi(apiInstance);
+          setRelayChainStatus("connected");
+          return;
+        } catch (e) {
+          console.warn(`[Relay Chain] Failed to connect to ${endpointUrl}:`, e);
+          lastError = e as Error;
+        }
+      }
+
+      if (mounted) {
+        console.error("[Relay Chain] Failed to connect to any endpoint", lastError);
+        setRelayChainStatus("error");
+      }
+    };
+
+    connectRelayChain();
+
+    return () => {
+      mounted = false;
+      if (relayChainApi) {
+        relayChainApi.disconnect().catch(console.error);
+      }
+    };
+  }, []);
 
   const value = useMemo(
     () => ({
-      api,
-      status,
-      currentEndpoint,
-      switchNetwork,
+      assetHubApi,
+      assetHubStatus,
+      relayChainApi,
+      relayChainStatus,
+      // Legacy compatibility - api points to Asset Hub
+      api: assetHubApi,
+      status: assetHubStatus,
     }),
-    [api, status, currentEndpoint]
+    [assetHubApi, assetHubStatus, relayChainApi, relayChainStatus]
   );
 
   return (
