@@ -36,6 +36,8 @@ export default function CrowdloanContributions() {
   const [searchAccountsList, setSearchAccountsList] = useState<string[]>([]);
   const [newAccountInput, setNewAccountInput] = useState<string>("");
   const [currentRelayBlock, setCurrentRelayBlock] = useState<number | null>(null);
+  const [lastQueryTime, setLastQueryTime] = useState<number>(0);
+  const [cachedEntries, setCachedEntries] = useState<ContributionEntry[]>([]);
 
   // Convert connected account address to Polkadot SS58 format (prefix 0)
   const connectedAccountPolkadot = useMemo(() => {
@@ -183,6 +185,7 @@ export default function CrowdloanContributions() {
     return daysRemaining;
   };
 
+  // Fetch contributions from RPC (cached for 1 minute)
   useEffect(() => {
     async function fetchContributions() {
       if (!api || status !== "connected") {
@@ -190,9 +193,21 @@ export default function CrowdloanContributions() {
         return;
       }
 
+      const now = Date.now();
+      const ONE_MINUTE = 60 * 1000;
+
+      // Use cached data if less than 1 minute old
+      if (cachedEntries.length > 0 && now - lastQueryTime < ONE_MINUTE) {
+        console.log("Using cached contributions data");
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
+        setContributions([]); // Clear previous contributions
+
+        console.log("Fetching contributions from RPC...");
 
         // Get token decimals and symbol from chain properties
         const properties = await api.rpc.system.properties();
@@ -204,67 +219,108 @@ export default function CrowdloanContributions() {
         // Query all entries from the RcCrowdloanContributions storage map
         const entries = await api.query.ahOps.rcCrowdloanContribution.entries();
 
-        const formattedEntries: ContributionEntry[] = entries.map(
-          ([key, value]) => {
-            // Decode the storage key to get unlockBlockNumber, paraId, and account
-            const [unlockBlockNumber, paraId, account] = key.args;
-            // Decode the value to get [fund_pot, balance]
-            const valueArray = value.toJSON() as any[];
-            const fundPot = valueArray[0];
-            const balance = valueArray[1];
+        // Process entries in batches
+        const BATCH_SIZE = 100;
+        const allFormattedEntries: ContributionEntry[] = [];
 
-            return {
-              unlockBlockNumber: unlockBlockNumber.toString(),
-              paraId: paraId.toString(),
-              account: account.toString(),
-              fundPot: fundPot.toString(),
-              balance: balance.toString(),
-            };
+        for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+          const batch = entries.slice(i, i + BATCH_SIZE);
+
+          const formattedBatch: ContributionEntry[] = batch.map(
+            ([key, value]) => {
+              // Decode the storage key to get unlockBlockNumber, paraId, and account
+              const [unlockBlockNumber, paraId, account] = key.args;
+              // Decode the value to get [fund_pot, balance]
+              const valueArray = value.toJSON() as any[];
+              const fundPot = valueArray[0];
+              const balance = valueArray[1];
+
+              return {
+                unlockBlockNumber: unlockBlockNumber.toString(),
+                paraId: paraId.toString(),
+                account: account.toString(),
+                fundPot: fundPot.toString(),
+                balance: balance.toString(),
+              };
+            }
+          );
+
+          allFormattedEntries.push(...formattedBatch);
+
+          // Hide loading spinner after first batch
+          if (i === 0) {
+            setLoading(false);
           }
-        );
 
-        // Sort contributions: search accounts first, then by Para ID, Unlock Block, Account, Balance
-        const sortedEntries = formattedEntries.sort((a, b) => {
-          // First, prioritize searched accounts
-          const aIsSearched = searchAccounts.some(
-            (addr) => a.account.toLowerCase() === addr.toLowerCase()
-          );
-          const bIsSearched = searchAccounts.some(
-            (addr) => b.account.toLowerCase() === addr.toLowerCase()
-          );
+          // Allow UI to update between batches
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
 
-          if (aIsSearched && !bIsSearched) return -1;
-          if (!aIsSearched && bIsSearched) return 1;
-
-          // Then sort by Para ID
-          const paraIdCompare = Number(a.paraId) - Number(b.paraId);
-          if (paraIdCompare !== 0) return paraIdCompare;
-
-          // Then by Unlock Block
-          const blockCompare = Number(a.unlockBlockNumber) - Number(b.unlockBlockNumber);
-          if (blockCompare !== 0) return blockCompare;
-
-          // Then by Account
-          const accountCompare = a.account.localeCompare(b.account);
-          if (accountCompare !== 0) return accountCompare;
-
-          // Finally by Balance
-          return Number(a.balance) - Number(b.balance);
-        });
-
-        setContributions(sortedEntries);
+        // Cache the fetched entries
+        setCachedEntries(allFormattedEntries);
+        setLastQueryTime(now);
       } catch (err) {
         console.error("Error fetching contributions:", err);
         setError(
           err instanceof Error ? err.message : "Failed to fetch contributions"
         );
-      } finally {
         setLoading(false);
       }
     }
 
     fetchContributions();
-  }, [api, status, searchAccounts]);
+  }, [api, status]);
+
+  // Sort and display contributions whenever cache or search accounts change
+  useEffect(() => {
+    if (cachedEntries.length === 0) return;
+
+    async function sortAndDisplayBatched() {
+      const sortedEntries = [...cachedEntries].sort((a, b) => {
+        // First, prioritize searched accounts
+        const aIsSearched = searchAccounts.some(
+          (addr) => a.account.toLowerCase() === addr.toLowerCase()
+        );
+        const bIsSearched = searchAccounts.some(
+          (addr) => b.account.toLowerCase() === addr.toLowerCase()
+        );
+
+        if (aIsSearched && !bIsSearched) return -1;
+        if (!aIsSearched && bIsSearched) return 1;
+
+        // Then sort by Para ID
+        const paraIdCompare = Number(a.paraId) - Number(b.paraId);
+        if (paraIdCompare !== 0) return paraIdCompare;
+
+        // Then by Unlock Block
+        const blockCompare = Number(a.unlockBlockNumber) - Number(b.unlockBlockNumber);
+        if (blockCompare !== 0) return blockCompare;
+
+        // Then by Account
+        const accountCompare = a.account.localeCompare(b.account);
+        if (accountCompare !== 0) return accountCompare;
+
+        // Finally by Balance
+        return Number(a.balance) - Number(b.balance);
+      });
+
+      // Display in batches of 100
+      const BATCH_SIZE = 100;
+      setContributions([]); // Clear first
+
+      for (let i = 0; i < sortedEntries.length; i += BATCH_SIZE) {
+        const batch = sortedEntries.slice(0, i + BATCH_SIZE);
+        setContributions([...batch]);
+
+        // Allow UI to update between batches
+        if (i + BATCH_SIZE < sortedEntries.length) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+    }
+
+    sortAndDisplayBatched();
+  }, [cachedEntries, searchAccounts]);
 
   if (status === "connecting") {
     return (
