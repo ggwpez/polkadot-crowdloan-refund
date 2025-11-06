@@ -29,6 +29,42 @@ type FetchState =
   | { status: "fetching"; currentCount: number }
   | { status: "complete"; totalCount: number };
 
+// Constants
+const POLKADOT_SS58_PREFIX = 0;
+const CACHE_DURATION_MS = 60 * 1000;
+const PAGE_SIZE = 500;
+const UPDATE_BATCH_SIZE = 10;
+const RELAY_BLOCK_TIME_SECONDS = 6.6;
+const SECONDS_PER_DAY = 86400;
+const BLOCK_FETCH_INTERVAL_MS = 12000;
+
+// Helper functions
+const normalizeAddress = (address: string): string | null => {
+  try {
+    const publicKey = decodeAddress(address.trim());
+    return encodeAddress(publicKey, POLKADOT_SS58_PREFIX);
+  } catch {
+    return null;
+  }
+};
+
+const truncateAddress = (address: string): string =>
+  `${address.slice(0, 8)}...${address.slice(-8)}`;
+
+const getRowKey = (contribution: ContributionEntry): string =>
+  `${contribution.unlockBlockNumber}-${contribution.paraId}-${contribution.account}`;
+
+const getFetchStateLabel = (state: FetchState): string => {
+  switch (state.status) {
+    case "fetching":
+      return `Entries: ${state.currentCount} (loading...)`;
+    case "complete":
+      return `Entries: ${state.totalCount}`;
+    case "idle":
+      return `Entries: 0`;
+  }
+};
+
 export default function CrowdloanContributions() {
   const { api, status, relayChainApi, relayChainStatus } = usePolkadot();
   const { connectedAccount } = useTypink();
@@ -48,17 +84,10 @@ export default function CrowdloanContributions() {
   const [unlockingRows, setUnlockingRows] = useState<Set<string>>(new Set());
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
 
-  // Convert connected account address to Polkadot SS58 format (prefix 0)
-  const connectedAccountPolkadot = useMemo(() => {
-    if (!connectedAccount?.address) return null;
-    try {
-      const publicKey = decodeAddress(connectedAccount.address);
-      return encodeAddress(publicKey, 0); // 0 is Polkadot SS58 format
-    } catch (err) {
-      console.error("Failed to convert address:", err);
-      return null;
-    }
-  }, [connectedAccount]);
+  const connectedAccountPolkadot = useMemo(
+    () => connectedAccount?.address ? normalizeAddress(connectedAccount.address) : null,
+    [connectedAccount]
+  );
 
   // Initialize accounts list from URL params
   useEffect(() => {
@@ -103,40 +132,23 @@ export default function CrowdloanContributions() {
     }
 
     fetchCurrentBlock();
-
-    // Update block number every 12 seconds (approximately 2 blocks)
-    const interval = setInterval(fetchCurrentBlock, 12000);
-
+    const interval = setInterval(fetchCurrentBlock, BLOCK_FETCH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [relayChainApi, relayChainStatus, settings.relayBlockOverride]);
 
-  // Convert addresses to Polkadot SS58 format
-  const normalizeAddress = (address: string): string | null => {
-    try {
-      const publicKey = decodeAddress(address.trim());
-      return encodeAddress(publicKey, 0);
-    } catch (err) {
-      return null;
-    }
-  };
+  const searchAccounts = useMemo(
+    () => searchAccountsList.map(normalizeAddress).filter((addr): addr is string => addr !== null),
+    [searchAccountsList]
+  );
 
-  // Parse and normalize the accounts from list
-  const searchAccounts = useMemo(() => {
-    return searchAccountsList
-      .map((addr) => normalizeAddress(addr))
-      .filter((addr): addr is string => addr !== null);
-  }, [searchAccountsList]);
-
-  // Count contributions per searched account
   const accountContributionCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     searchAccountsList.forEach((account) => {
       const normalized = normalizeAddress(account);
       if (normalized) {
-        const count = contributions.filter(
+        counts[account] = contributions.filter(
           (c) => c.account.toLowerCase() === normalized.toLowerCase()
         ).length;
-        counts[account] = count;
       }
     });
     return counts;
@@ -164,15 +176,10 @@ export default function CrowdloanContributions() {
     setNewAccountInput("");
   };
 
-  // Remove account from the list
   const removeAccount = (address: string) => {
     const newList = searchAccountsList.filter(a => a !== address);
     setSearchAccountsList(newList);
-    if (newList.length > 0) {
-      setSearchParams({ accounts: newList.join(",") });
-    } else {
-      setSearchParams({});
-    }
+    setSearchParams(newList.length > 0 ? { accounts: newList.join(",") } : {});
   };
 
   const copyToClipboard = async (address: string, rowKey: string) => {
@@ -185,19 +192,14 @@ export default function CrowdloanContributions() {
     }
   };
 
-  // Handle unlocking a crowdloan contribution
   const handleUnlock = async (contribution: ContributionEntry) => {
     if (!api || !connectedAccount) {
       alert("Please connect your wallet and ensure Asset Hub API is connected");
       return;
     }
 
-    const rowKey = `${contribution.paraId}-${contribution.account}`;
-
-    // Check if already unlocking
-    if (unlockingRows.has(rowKey)) {
-      return;
-    }
+    const rowKey = getRowKey(contribution);
+    if (unlockingRows.has(rowKey)) return;
 
     try {
       setUnlockingRows((prev) => new Set(prev).add(rowKey));
@@ -268,25 +270,15 @@ export default function CrowdloanContributions() {
     }
   };
 
-  // Calculate estimated unlock duration in days
   const calculateUnlockDays = (unlockBlock: string): number | null => {
     if (!currentRelayBlock) return null;
 
-    const unlockBlockNum = Number(unlockBlock);
-    const blocksRemaining = unlockBlockNum - currentRelayBlock;
-
-    // If already past unlock block, return 0 (no negative days)
+    const blocksRemaining = Number(unlockBlock) - currentRelayBlock;
     if (blocksRemaining <= 0) return 0;
 
-    // 6.6 seconds per block, convert to days
-    const secondsRemaining = blocksRemaining * 6.6;
-    const daysRemaining = secondsRemaining / 86400;
-
-    // Extra safety: ensure we never return negative days
-    return Math.max(0, daysRemaining);
+    return (blocksRemaining * RELAY_BLOCK_TIME_SECONDS) / SECONDS_PER_DAY;
   };
 
-  // Fetch contributions from RPC (cached for 1 minute)
   useEffect(() => {
     async function fetchContributions() {
       if (!api || status !== "connected") {
@@ -295,10 +287,7 @@ export default function CrowdloanContributions() {
       }
 
       const now = Date.now();
-      const ONE_MINUTE = 60 * 1000;
-
-      // Use cached data if less than 1 minute old
-      if (cachedEntries.length > 0 && now - lastQueryTime < ONE_MINUTE) {
+      if (cachedEntries.length > 0 && now - lastQueryTime < CACHE_DURATION_MS) {
         console.log("Using cached contributions data");
         return;
       }
@@ -307,22 +296,17 @@ export default function CrowdloanContributions() {
         setLoading(true);
         setFetchState({ status: "fetching", currentCount: 0 });
         setError(null);
-        setContributions([]); // Clear previous contributions
+        setContributions([]);
 
         console.log("Fetching contributions from RPC...");
 
-        // Get token decimals and symbol from chain properties
         const properties = await api.rpc.system.properties();
-        const decimals = Number(properties.tokenDecimals.unwrapOr([10])[0]);
-        const symbol = properties.tokenSymbol.unwrapOr(["DOT"])[0].toString();
-        setTokenDecimals(decimals);
-        setTokenSymbol(symbol);
+        setTokenDecimals(Number(properties.tokenDecimals.unwrapOr([10])[0]));
+        setTokenSymbol(properties.tokenSymbol.unwrapOr(["DOT"])[0].toString());
 
-        // Fetch entries using pagination to stream results
-        const PAGE_SIZE = 500;
         const allFormattedEntries: ContributionEntry[] = [];
         let itemsSinceLastUpdate = 0;
-        let lastKey: string | undefined = undefined;
+        let lastKey: string | undefined;
         let pageCount = 0;
 
         while (true) {
@@ -336,48 +320,32 @@ export default function CrowdloanContributions() {
 
           pageCount++;
 
-          // Process the page
-          const formattedBatch: ContributionEntry[] = entries.map(
-            ([key, value]) => {
-              // Decode the storage key to get unlockBlockNumber, paraId, and account
-              const [unlockBlockNumber, paraId, account] = key.args;
-              // Decode the value to get [fund_pot, balance]
-              const valueArray = value.toJSON() as any[];
-              const fundPot = valueArray[0];
-              const balance = valueArray[1];
+          const formattedBatch = entries.map(([key, value]: any) => {
+            const [unlockBlockNumber, paraId, account] = key.args;
+            const [fundPot, balance] = value.toJSON() as any[];
 
-              return {
-                unlockBlockNumber: unlockBlockNumber.toString(),
-                paraId: paraId.toString(),
-                account: account.toString(),
-                fundPot: fundPot.toString(),
-                balance: balance.toString(),
-              };
-            }
-          );
+            return {
+              unlockBlockNumber: unlockBlockNumber.toString(),
+              paraId: paraId.toString(),
+              account: account.toString(),
+              fundPot: fundPot.toString(),
+              balance: balance.toString(),
+            };
+          });
 
           allFormattedEntries.push(...formattedBatch);
           itemsSinceLastUpdate += formattedBatch.length;
 
-          // Update contributions every 10 items
-          if (itemsSinceLastUpdate >= 10) {
+          if (itemsSinceLastUpdate >= UPDATE_BATCH_SIZE) {
             setCachedEntries([...allFormattedEntries]);
             setFetchState({ status: "fetching", currentCount: allFormattedEntries.length });
             itemsSinceLastUpdate = 0;
           }
 
-          // Hide loading spinner after first page
-          if (pageCount === 1) {
-            setLoading(false);
-          }
-
-          // Check if this was the last page
+          if (pageCount === 1) setLoading(false);
           if (entries.length < PAGE_SIZE) break;
 
-          // Get the last key for the next page
           lastKey = entries[entries.length - 1][0].toHex();
-
-          // Allow UI to update between pages
           await new Promise(resolve => setTimeout(resolve, 0));
         }
 
@@ -566,16 +534,7 @@ export default function CrowdloanContributions() {
       <Card>
         <CardHeader>
           <CardDescription>
-            {(() => {
-              switch (fetchState.status) {
-                case "fetching":
-                  return `Entries: ${fetchState.currentCount} (loading...)`;
-                case "complete":
-                  return `Entries: ${fetchState.totalCount}`;
-                case "idle":
-                  return `Entries: 0`;
-              }
-            })()}
+            {getFetchStateLabel(fetchState)}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2">
@@ -617,8 +576,8 @@ export default function CrowdloanContributions() {
                   </tr>
                 </thead>
                 <tbody>
-                  {contributions.map((contribution, idx) => {
-                    const rowKey = `${contribution.unlockBlockNumber}-${contribution.paraId}-${contribution.account}`;
+                  {contributions.map((contribution) => {
+                    const rowKey = getRowKey(contribution);
                     const isSearchedAccount = searchAccounts.some(
                       (addr) => contribution.account.toLowerCase() === addr.toLowerCase()
                     );
@@ -671,8 +630,7 @@ export default function CrowdloanContributions() {
                           }`}
                           title="Click to copy address"
                         >
-                          {contribution.account.slice(0, 8)}...
-                          {contribution.account.slice(-8)}
+                          {truncateAddress(contribution.account)}
                         </button>
                       </td>
                       <td className="py-3 px-4 text-white/90 font-mono text-sm">
@@ -683,8 +641,7 @@ export default function CrowdloanContributions() {
                           }`}
                           title="Click to copy fund pot address"
                         >
-                          {contribution.fundPot.slice(0, 8)}...
-                          {contribution.fundPot.slice(-8)}
+                          {truncateAddress(contribution.fundPot)}
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right text-white/90">
