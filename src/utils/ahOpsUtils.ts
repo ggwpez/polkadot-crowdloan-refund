@@ -5,7 +5,7 @@ export const POLKADOT_SS58_PREFIX = 0;
 export const CACHE_DURATION_MS = 60 * 1000;
 export const PAGE_SIZE = 500;
 export const UPDATE_BATCH_SIZE = 10;
-export const RELAY_BLOCK_TIME_SECONDS = 6.6;
+export const RELAY_BLOCK_TIME_SECONDS = 6.06; // 1% delay on RC timing
 export const SECONDS_PER_DAY = 86400;
 export const BLOCK_FETCH_INTERVAL_MS = 12000;
 

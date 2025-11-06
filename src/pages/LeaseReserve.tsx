@@ -11,16 +11,16 @@ import { Input } from "@/components/ui/Input";
 import { usePolkadot } from "@/providers/PolkadotProvider";
 import { useRPCSettings } from "@/providers/RPCSettingsProvider";
 import {
+  BLOCK_FETCH_INTERVAL_MS,
+  CACHE_DURATION_MS,
   calculateUnlockDays,
   FetchState,
+  formatBalance,
   getFetchStateLabel,
   normalizeAddress,
   PAGE_SIZE,
   truncateAddress,
   UPDATE_BATCH_SIZE,
-  CACHE_DURATION_MS,
-  BLOCK_FETCH_INTERVAL_MS,
-  formatBalance,
 } from "@/utils/ahOpsUtils";
 import { Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -392,7 +392,7 @@ export default function LeaseReserve() {
     <div className="container mx-auto px-6 py-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-2">
-          Relay Chain Lease Reserves
+          Lease Reserves
         </h1>
         <p className="text-white/60">
           Reserved balance for winning lease auctions (crowdloan or solo bidder)

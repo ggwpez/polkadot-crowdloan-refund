@@ -1,26 +1,26 @@
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { Button } from "@/components/ui/Button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { usePolkadot } from "@/providers/PolkadotProvider";
 import { useRPCSettings } from "@/providers/RPCSettingsProvider";
 import {
-  calculateUnlockDays,
-  FetchState,
-  getFetchStateLabel,
-  normalizeAddress,
-  PAGE_SIZE,
-  truncateAddress,
-  UPDATE_BATCH_SIZE,
-  CACHE_DURATION_MS,
-  BLOCK_FETCH_INTERVAL_MS,
-  formatBalance,
+    BLOCK_FETCH_INTERVAL_MS,
+    CACHE_DURATION_MS,
+    calculateUnlockDays,
+    FetchState,
+    formatBalance,
+    getFetchStateLabel,
+    normalizeAddress,
+    PAGE_SIZE,
+    truncateAddress,
+    UPDATE_BATCH_SIZE,
 } from "@/utils/ahOpsUtils";
 import { Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -392,7 +392,7 @@ export default function CrowdloanReserve() {
     <div className="container mx-auto px-6 py-8">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-2">
-          Relay Chain Crowdloan Reserves
+          Crowdloan Reserves
         </h1>
         <p className="text-white/60">
           Reserve taken for creating crowdloans (normally 500 DOT)
