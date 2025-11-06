@@ -317,6 +317,7 @@ export default function CrowdloanContributions() {
         // Process entries in batches
         const BATCH_SIZE = 100;
         const allFormattedEntries: ContributionEntry[] = [];
+        let itemsSinceLastUpdate = 0;
 
         for (let i = 0; i < entries.length; i += BATCH_SIZE) {
           const batch = entries.slice(i, i + BATCH_SIZE);
@@ -341,6 +342,13 @@ export default function CrowdloanContributions() {
           );
 
           allFormattedEntries.push(...formattedBatch);
+          itemsSinceLastUpdate += formattedBatch.length;
+
+          // Update contributions every 10 items
+          if (itemsSinceLastUpdate >= 10) {
+            setCachedEntries([...allFormattedEntries]);
+            itemsSinceLastUpdate = 0;
+          }
 
           // Hide loading spinner after first batch
           if (i === 0) {
@@ -351,7 +359,7 @@ export default function CrowdloanContributions() {
           await new Promise(resolve => setTimeout(resolve, 0));
         }
 
-        // Cache the fetched entries
+        // Final update with all entries
         setCachedEntries(allFormattedEntries);
         setLastQueryTime(now);
       } catch (err) {
@@ -370,51 +378,36 @@ export default function CrowdloanContributions() {
   useEffect(() => {
     if (cachedEntries.length === 0) return;
 
-    async function sortAndDisplayBatched() {
-      const sortedEntries = [...cachedEntries].sort((a, b) => {
-        // First, prioritize searched accounts
-        const aIsSearched = searchAccounts.some(
-          (addr) => a.account.toLowerCase() === addr.toLowerCase()
-        );
-        const bIsSearched = searchAccounts.some(
-          (addr) => b.account.toLowerCase() === addr.toLowerCase()
-        );
+    const sortedEntries = [...cachedEntries].sort((a, b) => {
+      // First, prioritize searched accounts
+      const aIsSearched = searchAccounts.some(
+        (addr) => a.account.toLowerCase() === addr.toLowerCase()
+      );
+      const bIsSearched = searchAccounts.some(
+        (addr) => b.account.toLowerCase() === addr.toLowerCase()
+      );
 
-        if (aIsSearched && !bIsSearched) return -1;
-        if (!aIsSearched && bIsSearched) return 1;
+      if (aIsSearched && !bIsSearched) return -1;
+      if (!aIsSearched && bIsSearched) return 1;
 
-        // Then sort by Para ID
-        const paraIdCompare = Number(a.paraId) - Number(b.paraId);
-        if (paraIdCompare !== 0) return paraIdCompare;
+      // Then sort by Para ID
+      const paraIdCompare = Number(a.paraId) - Number(b.paraId);
+      if (paraIdCompare !== 0) return paraIdCompare;
 
-        // Then by Unlock Block
-        const blockCompare = Number(a.unlockBlockNumber) - Number(b.unlockBlockNumber);
-        if (blockCompare !== 0) return blockCompare;
+      // Then by Unlock Block
+      const blockCompare = Number(a.unlockBlockNumber) - Number(b.unlockBlockNumber);
+      if (blockCompare !== 0) return blockCompare;
 
-        // Then by Account
-        const accountCompare = a.account.localeCompare(b.account);
-        if (accountCompare !== 0) return accountCompare;
+      // Then by Account
+      const accountCompare = a.account.localeCompare(b.account);
+      if (accountCompare !== 0) return accountCompare;
 
-        // Finally by Balance
-        return Number(a.balance) - Number(b.balance);
-      });
+      // Finally by Balance
+      return Number(a.balance) - Number(b.balance);
+    });
 
-      // Display in batches of 100
-      const BATCH_SIZE = 100;
-      setContributions([]); // Clear first
-
-      for (let i = 0; i < sortedEntries.length; i += BATCH_SIZE) {
-        const batch = sortedEntries.slice(0, i + BATCH_SIZE);
-        setContributions([...batch]);
-
-        // Allow UI to update between batches
-        if (i + BATCH_SIZE < sortedEntries.length) {
-          await new Promise(resolve => setTimeout(resolve, 0));
-        }
-      }
-    }
-
-    sortAndDisplayBatched();
+    // Set all sorted contributions at once
+    setContributions(sortedEntries);
   }, [cachedEntries, searchAccounts]);
 
   if (status === "connecting") {
@@ -538,6 +531,12 @@ export default function CrowdloanContributions() {
       </Card>
 
       <Card>
+        <CardHeader>
+          <CardTitle>Contributions</CardTitle>
+          <CardDescription>
+            Total entries: {contributions.length}
+          </CardDescription>
+        </CardHeader>
         <CardContent className="pt-6">
           {loading ? (
             <div className="space-y-3">
@@ -657,9 +656,6 @@ export default function CrowdloanContributions() {
                   )})}
                 </tbody>
               </table>
-              <div className="mt-4 text-sm text-white/60">
-                Total entries: {contributions.length}
-              </div>
             </div>
           )}
         </CardContent>
