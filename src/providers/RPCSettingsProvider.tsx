@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 
 // Feature flag to enable/disable relay block override in production
 // Set to false before production deployment to hide this feature
-export const ENABLE_RELAY_BLOCK_OVERRIDE = true
+export const ENABLE_RELAY_BLOCK_OVERRIDE = false
 
 interface RPCSettings {
   polkadotRelayRPC: string
