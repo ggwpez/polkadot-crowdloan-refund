@@ -54,6 +54,7 @@ export default function CrowdloanContributions() {
   const [lastQueryTime, setLastQueryTime] = useState<number>(0);
   const [cachedEntries, setCachedEntries] = useState<ContributionEntry[]>([]);
   const [unlockingRows, setUnlockingRows] = useState<Set<string>>(new Set());
+  const [unlockingStates, setUnlockingStates] = useState<Record<string, 'signing' | 'including' | 'finalizing'>>({});
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
 
   const connectedAccountPolkadot = useMemo(
@@ -152,6 +153,13 @@ export default function CrowdloanContributions() {
     }
   };
 
+  const getUnlockButtonText = (rowKey: string): string => {
+    const state = unlockingStates[rowKey];
+    if (state === 'finalizing') return 'Finalizing...';
+    if (state === 'including') return 'Including...';
+    return 'Signing...';
+  };
+
   const handleUnlock = async (contribution: ContributionEntry) => {
     if (!api || !connectedAccount) {
       alert("Please connect your wallet and ensure Asset Hub API is connected");
@@ -163,6 +171,7 @@ export default function CrowdloanContributions() {
 
     try {
       setUnlockingRows((prev) => new Set(prev).add(rowKey));
+      setUnlockingStates((prev) => ({ ...prev, [rowKey]: 'signing' }));
 
       // Get the signer from the wallet
       const { web3Enable, web3FromAddress } = await import('@polkadot/extension-dapp');
@@ -187,8 +196,17 @@ export default function CrowdloanContributions() {
         connectedAccount.address,
         { signer: injector.signer },
         ({ status, events, dispatchError }) => {
+          // Transaction has been signed and sent, update state to including
+          setUnlockingStates((prev) => {
+            if (prev[rowKey] === 'signing') {
+              return { ...prev, [rowKey]: 'including' };
+            }
+            return prev;
+          });
+
           if (status.isInBlock) {
             console.log(`[Unlock] Transaction included in block hash: ${status.asInBlock.toHex()}`);
+            setUnlockingStates((prev) => ({ ...prev, [rowKey]: 'finalizing' }));
           }
 
           if (status.isFinalized) {
@@ -216,6 +234,11 @@ export default function CrowdloanContributions() {
               newSet.delete(rowKey);
               return newSet;
             });
+            setUnlockingStates((prev) => {
+              const newStates = { ...prev };
+              delete newStates[rowKey];
+              return newStates;
+            });
           }
         }
       );
@@ -226,6 +249,11 @@ export default function CrowdloanContributions() {
         const newSet = new Set(prev);
         newSet.delete(rowKey);
         return newSet;
+      });
+      setUnlockingStates((prev) => {
+        const newStates = { ...prev };
+        delete newStates[rowKey];
+        return newStates;
       });
     }
   };
@@ -562,7 +590,7 @@ export default function CrowdloanContributions() {
                             {unlockingRows.has(rowKey) ? (
                               <>
                                 <Loader2 className="w-3 h-3 animate-spin" />
-                                Unlocking...
+                                {getUnlockButtonText(rowKey)}
                               </>
                             ) : (
                               "Unlock"
