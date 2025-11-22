@@ -29,8 +29,9 @@ export const POLKADOT: ChainConfig = {
   id: "polkadot",
   name: "Polkadot",
   displayName: "Polkadot Relay Chain",
-  endpoint: "wss://rpc.polkadot.io",
+  endpoint: "wss://rpc.ibp.network/polkadot",
   endpoints: [
+    "wss://rpc.ibp.network/polkadot",
     "wss://rpc.polkadot.io",
     "wss://polkadot-rpc.dwellir.com",
     "wss://polkadot.public.curie.radiumblock.co/ws",
@@ -111,10 +112,10 @@ export const ASSETHUB_POLKADOT: ChainConfig = {
   id: "assethub-polkadot",
   name: "AssetHub Polkadot",
   displayName: "AssetHub Polkadot",
-  endpoint: "wss://polkadot-asset-hub-rpc.polkadot.io",
+  endpoint: "wss://sys.ibp.network/asset-hub-polkadot",
   endpoints: [
-    "wss://polkadot-asset-hub-rpc.polkadot.io",
     "wss://sys.ibp.network/asset-hub-polkadot",
+    "wss://polkadot-asset-hub-rpc.polkadot.io",
     "wss://statemint-rpc.dwellir.com",
   ],
   tokenSymbol: "DOT",

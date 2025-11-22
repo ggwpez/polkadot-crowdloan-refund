@@ -23,8 +23,8 @@ const STORAGE_KEY = 'rpc_settings'
 
 // Default RPC endpoints
 const DEFAULT_SETTINGS: RPCSettings = {
-  polkadotRelayRPC: 'wss://rpc.polkadot.io',
-  assetHubRPC: 'wss://polkadot-asset-hub-rpc.polkadot.io',
+  polkadotRelayRPC: 'wss://rpc.ibp.network/polkadot',
+  assetHubRPC: 'wss://sys.ibp.network/asset-hub-polkadot',
   relayBlockOverride: null,
 }
 
