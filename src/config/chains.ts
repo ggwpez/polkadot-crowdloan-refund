@@ -29,9 +29,8 @@ export const POLKADOT: ChainConfig = {
   id: "polkadot",
   name: "Polkadot",
   displayName: "Polkadot Relay Chain",
-  endpoint: "wss://rpc.ibp.network/polkadot",
+  endpoint: "wss://rpc.polkadot.io",
   endpoints: [
-    //"wss://rpc.ibp.network/polkadot",
     "wss://rpc.polkadot.io",
     "wss://polkadot-rpc.dwellir.com",
     "wss://polkadot.public.curie.radiumblock.co/ws",
@@ -112,9 +111,8 @@ export const ASSETHUB_POLKADOT: ChainConfig = {
   id: "assethub-polkadot",
   name: "AssetHub Polkadot",
   displayName: "AssetHub Polkadot",
-  endpoint: "wss://sys.ibp.network/asset-hub-polkadot",
+  endpoint: "wss://polkadot-asset-hub-rpc.polkadot.io",
   endpoints: [
-    //"wss://sys.ibp.network/asset-hub-polkadot",
     "wss://polkadot-asset-hub-rpc.polkadot.io",
     "wss://statemint-rpc.dwellir.com",
   ],
@@ -133,7 +131,6 @@ export const ASSETHUB_KUSAMA: ChainConfig = {
   endpoint: "wss://kusama-asset-hub-rpc.polkadot.io",
   endpoints: [
     "wss://kusama-asset-hub-rpc.polkadot.io",
-    "wss://sys.ibp.network/asset-hub-kusama",
     "wss://statemine-rpc.dwellir.com",
   ],
   tokenSymbol: "KSM",
@@ -151,7 +148,6 @@ export const ASSETHUB_WESTEND: ChainConfig = {
   endpoint: "wss://westend-asset-hub-rpc.polkadot.io",
   endpoints: [
     "wss://westend-asset-hub-rpc.polkadot.io",
-    "wss://sys.ibp.network/asset-hub-westend",
   ],
   tokenSymbol: "WND",
   tokenDecimals: 12,
@@ -168,7 +164,6 @@ export const ASSETHUB_PASEO: ChainConfig = {
   endpoint: "wss://paseo-asset-hub-rpc.polkadot.io",
   endpoints: [
     "wss://paseo-asset-hub-rpc.polkadot.io",
-    "wss://sys.ibp.network/asset-hub-paseo",
   ],
   tokenSymbol: "PAS",
   tokenDecimals: 10,
