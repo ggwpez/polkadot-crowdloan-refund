@@ -101,13 +101,37 @@
     animation: shimmer 2s infinite linear;
   }
 
-  @keyframes blink {
-    0%, 100% {
+  @keyframes pop-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    60% {
+      transform: scale(1.08);
+    }
+    100% {
       opacity: 1;
+      transform: scale(1);
     }
-    50% {
-      opacity: 0.3;
+  }
+
+  .animate-pop-in {
+    animation: pop-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(12px);
     }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .sr-only {

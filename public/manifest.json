@@ -1,7 +1,7 @@
 {
-  "name": "Polkadot Crowdloan Unlocker",
-  "short_name": "Crowdloan Unlocker",
-  "description": "Unlock your Polkadot crowdloan contributions and manage your assets",
+  "name": "Polkadot Crowdloan Refund",
+  "short_name": "Crowdloan Refund",
+  "description": "The Polkadot crowdloan refund is complete.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0b1e",
@@ -21,18 +21,5 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["finance", "productivity", "utilities"],
-  "screenshots": [
-    {
-      "src": "/screenshot-desktop.png",
-      "type": "image/png",
-      "sizes": "1280x720",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshot-mobile.png",
-      "type": "image/png",
-      "sizes": "750x1334"
-    }
-  ]
+  "categories": ["finance", "utilities"]
 }

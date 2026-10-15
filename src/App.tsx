@@ -1,63 +1,73 @@
-import { Wallet, Lock, Building2 } from "lucide-react";
-import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
-import ConnectWallet from "./components/ConnectWallet";
-import CrowdloanContributions from "./pages/CrowdloanContributions";
-import LeaseReserve from "./pages/LeaseReserve";
-import CrowdloanReserve from "./pages/CrowdloanReserve";
-import { PolkadotProvider } from "./providers/PolkadotProvider";
-import { RPCSettingsProvider } from "./providers/RPCSettingsProvider";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Check, Github } from "lucide-react";
+import type { ReactNode } from "react";
 
-function Navigation() {
-  const links = [
-    { to: "/", label: "Crowdloan Contributions", icon: Wallet },
-    { to: "/lease-reserve", label: "Lease Reserves", icon: Lock },
-    { to: "/crowdloan-reserve", label: "Crowdloan Reserves", icon: Building2 },
-  ];
-
+function CheckItem({ children }: { children: ReactNode }) {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-white/10 backdrop-blur-xl">
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
-          <Link
-            to="/"
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
-            <div className="w-8 h-8 rounded-lg bg-gradient-polkadot"></div>
-            <span className="text-xl font-bold text-white">AssetHub AhOps</span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-6">
-            {links.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className="flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium"
-              >
-                <link.icon className="w-4 h-4" />
-                {link.label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <ConnectWallet />
-          </div>
-        </div>
-      </div>
-    </nav>
+    <li className="flex items-start gap-3">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-polkadot-cyan)]/15">
+        <Check className="h-3 w-3 text-[var(--color-polkadot-cyan)]" strokeWidth={3} />
+      </span>
+      <span className="text-white/80">{children}</span>
+    </li>
   );
 }
 
-function Footer() {
+export default function App() {
   return (
-    <footer className="glass-dark border-t border-white/10 mt-20">
-      <div className="container mx-auto px-6 py-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0b0b1e] via-[#1a0b2e] to-[#0b0b1e]">
+      <main className="flex-1 flex items-center justify-center px-6 py-16">
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-10">
+            <div className="relative mx-auto mb-8 h-24 w-24">
+              <div className="absolute inset-0 rounded-full bg-gradient-polkadot blur-2xl opacity-40" />
+              <div className="relative flex h-24 w-24 items-center justify-center rounded-full border border-white/15 bg-white/5 backdrop-blur-xl animate-pop-in">
+                <Check className="h-12 w-12 text-white" strokeWidth={3} />
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 animate-fade-up">
+              Mission <span className="text-gradient">Complete</span>
+            </h1>
+            <p
+              className="text-lg text-white/60 max-w-xl mx-auto animate-fade-up"
+              style={{ animationDelay: "120ms" }}
+            >
+              The Polkadot crowdloan refund is done. All contributions and reserves
+              handled by this interface have been unlocked and returned to their
+              owners.
+            </p>
+          </div>
+
+          <Card className="mb-6 animate-fade-up" style={{ animationDelay: "240ms" }}>
+            <CardHeader>
+              <CardTitle className="text-xl">What was accomplished</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                <CheckItem>Crowdloan contributions withdrawn and refunded</CheckItem>
+                <CheckItem>Lease reserves released</CheckItem>
+                <CheckItem>Crowdloan reserves released</CheckItem>
+                <CheckItem>No outstanding claims remain</CheckItem>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="animate-fade-up" style={{ animationDelay: "360ms" }}>
+            <CardContent className="pt-6">
+              <p className="text-white/60 text-sm text-center">
+                This interface is now retired — no wallet connection needed,
+                there is nothing left to claim here.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+
+      <footer className="border-t border-white/10">
+        <div className="container mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-polkadot"></div>
-            <span className="text-white/70 text-sm">
-              AssetHub AhOps Interface
-            </span>
+            <div className="w-6 h-6 rounded-lg bg-gradient-polkadot" />
+            <span className="text-white/70 text-sm">Polkadot Crowdloan Refund</span>
           </div>
           <div className="flex items-center gap-6">
             <a
@@ -66,31 +76,16 @@ function Footer() {
             >
               Polkadot
             </a>
+            <a
+              href="https://github.com/ggwpez/polkadot-crowdloan-refund"
+              className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-sm"
+            >
+              <Github className="w-4 h-4" />
+              Source
+            </a>
           </div>
         </div>
-      </div>
-    </footer>
-  );
-}
-
-export default function App() {
-  return (
-    <RPCSettingsProvider>
-      <PolkadotProvider>
-        <BrowserRouter>
-          <div className="min-h-screen bg-gradient-to-br from-[#0b0b1e] via-[#1a0b2e] to-[#0b0b1e]">
-            <Navigation />
-            <main className="pt-16">
-              <Routes>
-                <Route path="/" element={<CrowdloanContributions />} />
-                <Route path="/lease-reserve" element={<LeaseReserve />} />
-                <Route path="/crowdloan-reserve" element={<CrowdloanReserve />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </BrowserRouter>
-      </PolkadotProvider>
-    </RPCSettingsProvider>
+      </footer>
+    </div>
   );
 }
